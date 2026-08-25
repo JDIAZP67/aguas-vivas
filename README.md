@@ -81,18 +81,25 @@ npm run build && npm run start   # producción local
 | Registro/login de miembros (Supabase Auth) | ✅ Listo |
 | Configuración de iglesia editable | ✅ En `/admin` |
 | 📖 **Nivel 1 Fundamentos: 12 lecciones completas** con progreso | ✅ En `/estudios` |
-| Roles preparados (pastor, mantenimiento, tesorería…) | 🔜 Fases 3-4 |
+| 🔴 **Transmisiones en vivo** (YouTube) + biblioteca de grabaciones | ✅ `/admin/en-vivo` · `/biblioteca` |
+| Roles preparados (pastor, mantenimiento, tesorería…) | 🔜 Fase 4 |
 | Niveles 2 y 3 del discipulado | 🔜 Fase siguiente |
-| Transmisión en vivo | 🔜 Fase 3 |
 | Diezmos/ofrendas en línea | 🔜 Fase 4 |
 | Multi-iglesia + inglés/portugués | 🔜 Fase 5 |
 
-### Activar los estudios (Fase 2)
+### Activar los estudios y transmisiones (Fases 2-3)
 
 Después del `schema.sql`, ejecuta en el SQL Editor de Supabase en este orden:
 
-1. `supabase/schema-fase2.sql` — crea cursos, lecciones y progreso
-2. `supabase/seed-nivel1.sql` — carga las 12 lecciones del Nivel 1
+1. `supabase/schema-fase2.sql` + `supabase/seed-nivel1.sql` — estudios
+2. `supabase/schema-fase3.sql` — sesiones en vivo (incluye ejemplos)
+
+### Cómo transmitir en vivo
+
+1. Crea una cuenta de YouTube de la iglesia y activa la transmisión en vivo (gratis).
+2. En `/admin/en-vivo`, programa la sesión con fecha y pega el enlace de YouTube.
+3. Al comenzar, presiona **Iniciar 🔴**: la home muestra el reproductor automáticamente.
+4. Al terminar, presiona **Finalizar**: la grabación queda en `/biblioteca`.
 
 ## 👥 Primer usuario pastor
 

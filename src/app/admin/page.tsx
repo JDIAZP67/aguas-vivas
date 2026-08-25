@@ -2,9 +2,9 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
-import { ROLE_LABELS, type Tenant, type Profile } from "@/lib/types";
+import type { Tenant, Profile } from "@/lib/types";
 import ConfigForm from "@/components/ConfigForm";
-import LogoutButton from "@/components/LogoutButton";
+import AdminShell from "@/components/AdminShell";
 
 export const metadata = {
   title: "Panel de administración — Aguas Vivas",
@@ -23,9 +23,7 @@ export default async function AdminPage() {
     user = null;
   }
 
-  if (!user) {
-    redirect("/acceso");
-  }
+  if (!user) redirect("/acceso");
 
   let profile: Profile | null = null;
   try {
@@ -34,7 +32,7 @@ export default async function AdminPage() {
       .select("id, tenant_id, full_name, role")
       .eq("id", user.id)
       .maybeSingle();
-    profile = data as Profile | null;
+    profile = (data as Profile) ?? null;
   } catch {
     profile = null;
   }
@@ -51,7 +49,7 @@ export default async function AdminPage() {
     tenant = null;
   }
 
-  const decisions: Array<{
+  interface DecisionRow {
     id: string;
     full_name: string;
     email: string | null;
@@ -60,8 +58,13 @@ export default async function AdminPage() {
     city: string | null;
     status: string;
     created_at: string;
-  }> = [];
-  if (tenant && profile && ["super_admin", "pastor", "maestro"].includes(profile.role)) {
+  }
+  const decisions: DecisionRow[] = [];
+  if (
+    tenant &&
+    profile &&
+    ["super_admin", "pastor", "maestro"].includes(profile.role)
+  ) {
     try {
       const { data } = await supabase
         .from("salvation_decisions")
@@ -71,7 +74,7 @@ export default async function AdminPage() {
         .eq("tenant_id", tenant.id)
         .order("created_at", { ascending: false })
         .limit(15);
-      decisions.push(...(data ?? []));
+      decisions.push(...((data as DecisionRow[]) ?? []));
     } catch {}
   }
 
@@ -79,139 +82,89 @@ export default async function AdminPage() {
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) && Boolean(tenant);
 
   return (
-    <div className="app">
-      <aside className="sidebar">
-        <Link href="/" className="side-brand">
-          <span className="mark" />
-          <span>Aguas Vivas</span>
-        </Link>
-
-        <ul className="side-nav">
-          <li>
-            <a href="#" className="active">
-              <span className="dot" />
-              Panel general
-            </a>
-          </li>
-          <li>
-            <a href="#" className="locked">
-              <span className="dot" />
-              Contenido &amp; video 🔒
-            </a>
-          </li>
-          <li>
-            <a href="#" className="locked">
-              <span className="dot" />
-              Niveles de estudio 🔒
-            </a>
-          </li>
-          <li>
-            <a href="#" className="locked">
-              <span className="dot" />
-              Mayordomía 🔒
-            </a>
-          </li>
-          <li>
-            <a href="#">
-              <span className="dot" />
-              Configuración
-            </a>
-          </li>
-        </ul>
-
-        <div className="role-card">
-          <div className="label">Rol actual</div>
-          <div className="role-name">
-            {profile ? ROLE_LABELS[profile.role] : "Miembro"}
-          </div>
-          <p>
-            Fase 1 del proyecto: configuración de la iglesia y seguimiento de
-            decisiones de fe. Los demás módulos se activan en fases siguientes.
-          </p>
-          <LogoutButton />
+    <AdminShell active="/admin" profile={profile}>
+      <div className="page-head">
+        <div>
+          <div className="page-eyebrow">Configuración de la iglesia</div>
+          <h1>{tenant?.name ?? "Aguas Vivas"}</h1>
         </div>
-      </aside>
+      </div>
+      <p className="subhead">
+        Esta información se usa en la página pública de la iglesia y en los
+        comprobantes y certificados que se generen.
+      </p>
 
-      <main className="admin-main">
-        <div className="page-head">
+      {!supabaseConfigured && (
+        <div className="perm-note">
+          <span>⚙️</span>
           <div>
-            <div className="page-eyebrow">Configuración de la iglesia</div>
-            <h1>{tenant?.name ?? "Aguas Vivas"}</h1>
+            <b>Supabase no está conectado</b>
+            Crea tu proyecto en supabase.com, ejecuta los archivos{" "}
+            <code>supabase/schema*.sql</code> en el SQL Editor, copia tus
+            credenciales al archivo <code>.env.local</code> y reinicia el
+            servidor.
           </div>
         </div>
-        <p className="subhead">
-          Esta información se usa en la página pública de la iglesia y en los
-          comprobantes y certificados que se generen.
-        </p>
+      )}
 
-        {!supabaseConfigured && (
-          <div className="perm-note">
-            <span>⚙️</span>
+      {tenant && <ConfigForm tenant={tenant} />}
+
+      {decisions.length > 0 && (
+        <>
+          <div style={{ height: 30 }} />
+          <div className="page-head">
             <div>
-              <b>Supabase no está conectado</b>
-              Crea tu proyecto en supabase.com, ejecuta el archivo
-              <code> supabase/schema.sql</code> en el SQL Editor, copia tus
-              credenciales al archivo <code>.env.local</code> y reinicia el
-              servidor.
+              <div className="page-eyebrow">Evangelismo</div>
+              <h1 style={{ fontSize: "1.5rem" }}>
+                Decisiones de fe recientes
+              </h1>
             </div>
+            <span className="save-note">{decisions.length} registro(s)</span>
           </div>
-        )}
-
-        {tenant && (
-          <ConfigForm tenant={tenant} />
-        )}
-
-        {decisions.length > 0 && (
-          <>
-            <div style={{ height: 30 }} />
-            <div className="page-head">
-              <div>
-                <div className="page-eyebrow">Evangelismo</div>
-                <h1 style={{ fontSize: "1.5rem" }}>
-                  Decisiones de fe recientes
-                </h1>
-              </div>
-              <span className="save-note">{decisions.length} registro(s)</span>
-            </div>
-            <p className="subhead">
-              Personas que oraron el Plan de Salvación y dejaron su contacto.
-              ¡Dales seguimiento cuanto antes!
-            </p>
-            <div className="card">
-              <table className="simple-table">
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Contacto</th>
-                    <th>Ubicación</th>
-                    <th>Fecha</th>
+          <p className="subhead">
+            Personas que oraron el Plan de Salvación y dejaron su contacto. ¡Da
+            seguimiento cuanto antes!
+          </p>
+          <div className="card">
+            <table className="simple-table">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Contacto</th>
+                  <th>Ubicación</th>
+                  <th>Fecha</th>
+                </tr>
+              </thead>
+              <tbody>
+                {decisions.map((d) => (
+                  <tr key={d.id}>
+                    <td>{d.full_name}</td>
+                    <td>
+                      {[d.email, d.phone].filter(Boolean).join(" · ") || "—"}
+                    </td>
+                    <td>
+                      {[d.city, d.country].filter(Boolean).join(", ") || "—"}
+                    </td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      {new Date(d.created_at).toLocaleDateString("es-PE", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {decisions.map((d) => (
-                    <tr key={d.id}>
-                      <td>{d.full_name}</td>
-                      <td>
-                        {[d.email, d.phone].filter(Boolean).join(" · ") || "—"}
-                      </td>
-                      <td>
-                        {[d.city, d.country].filter(Boolean).join(", ") || "—"}
-                      </td>
-                      <td style={{ whiteSpace: "nowrap" }}>
-                        {new Date(d.created_at).toLocaleDateString("es-PE", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </main>
-    </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p style={{ marginTop: 18 }}>
+            <Link href="/admin/en-vivo" style={{ color: "var(--sky-mid)", fontWeight: 700, fontSize: "0.9rem" }}>
+              Gestionar transmisiones y clases →
+            </Link>
+          </p>
+        </>
+      )}
+    </AdminShell>
   );
 }
