@@ -33,11 +33,10 @@ create policy sessions_public_read on public.sessions for select using (true);
 
 drop policy if exists sessions_team_write on public.sessions;
 create policy sessions_team_write on public.sessions for all using (
-  exists (
-    select 1 from public.profiles p
-    where p.id = auth.uid()
-      and p.role in ('super_admin','pastor','maestro')
-      and (p.role = 'super_admin' or p.tenant_id = sessions.tenant_id)
+  public.av_role() in ('super_admin','pastor','maestro')
+  and (
+    public.av_role() = 'super_admin'
+    or public.av_tenant() = sessions.tenant_id
   )
 );
 

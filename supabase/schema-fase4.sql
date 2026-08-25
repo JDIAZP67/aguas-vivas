@@ -41,55 +41,50 @@ create index if not exists transactions_tenant_occurred_idx
 alter table public.tenants add column if not exists donation_info text;
 
 -- ------------------------------------------------------------
--- 2. SEGURIDAD (RLS)
+-- 2. SEGURIDAD (RLS) — usa av_role()/av_tenant() de schema.sql
 --    El rol Mantenimiento NO tiene acceso a este módulo.
 -- ------------------------------------------------------------
 alter table public.transactions enable row level security;
 
 drop policy if exists tx_finance_read on public.transactions;
 create policy tx_finance_read on public.transactions for select using (
-  exists (
-    select 1 from public.profiles p
-    where p.id = auth.uid()
-      and p.role in ('super_admin','pastor','tesoreria')
-      and (p.role = 'super_admin' or p.tenant_id = transactions.tenant_id)
+  public.av_role() in ('super_admin','pastor','tesoreria')
+  and (
+    public.av_role() = 'super_admin'
+    or public.av_tenant() = transactions.tenant_id
   )
 );
 
 -- Cualquier persona puede enviar una intención de donación (queda pendiente)
 drop policy if exists tx_public_donate on public.transactions;
-create policy tx_public_donate on public.transactions for insert with check (
-  kind = 'ingreso' and status = 'pendiente'
-);
+create policy tx_public_donate on public.transactions
+  for insert with check (kind = 'ingreso' and status = 'pendiente');
 
 -- Tesorería / Pastor / Súper Admin registran manualmente
 drop policy if exists tx_finance_insert on public.transactions;
 create policy tx_finance_insert on public.transactions for insert with check (
-  exists (
-    select 1 from public.profiles p
-    where p.id = auth.uid()
-      and p.role in ('super_admin','pastor','tesoreria')
-      and (p.role = 'super_admin' or p.tenant_id = transactions.tenant_id)
+  public.av_role() in ('super_admin','pastor','tesoreria')
+  and (
+    public.av_role() = 'super_admin'
+    or public.av_tenant() = transactions.tenant_id
   )
 );
 
 drop policy if exists tx_finance_update on public.transactions;
 create policy tx_finance_update on public.transactions for update using (
-  exists (
-    select 1 from public.profiles p
-    where p.id = auth.uid()
-      and p.role in ('super_admin','pastor','tesoreria')
-      and (p.role = 'super_admin' or p.tenant_id = transactions.tenant_id)
+  public.av_role() in ('super_admin','pastor','tesoreria')
+  and (
+    public.av_role() = 'super_admin'
+    or public.av_tenant() = transactions.tenant_id
   )
 );
 
 drop policy if exists tx_pastor_delete on public.transactions;
 create policy tx_pastor_delete on public.transactions for delete using (
-  exists (
-    select 1 from public.profiles p
-    where p.id = auth.uid()
-      and p.role in ('super_admin','pastor')
-      and (p.role = 'super_admin' or p.tenant_id = transactions.tenant_id)
+  public.av_role() in ('super_admin','pastor')
+  and (
+    public.av_role() = 'super_admin'
+    or public.av_tenant() = transactions.tenant_id
   )
 );
 
