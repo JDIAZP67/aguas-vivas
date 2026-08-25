@@ -27,7 +27,7 @@ export default function Home() {
               >
                 Conoce el Plan de Salvación
               </Link>
-              <a className="pbtn pbtn-ghost pbtn-lg" href="#niveles">
+              <a className="pbtn pbtn-ghost pbtn-lg" href="/estudios">
                 Comenzar mis estudios
               </a>
             </div>

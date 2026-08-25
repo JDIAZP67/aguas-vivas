@@ -17,7 +17,7 @@ export default function SiteHeader() {
               <a href="/#vivo">En vivo</a>
             </li>
             <li>
-              <a href="/#niveles">Estudios bíblicos</a>
+              <Link href="/estudios">Estudios bíblicos</Link>
             </li>
             <li>
               <a href="/#mayordomia">Mayordomía</a>
