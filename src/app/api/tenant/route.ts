@@ -16,6 +16,7 @@ const ALLOWED_FIELDS = [
   "instagram",
   "youtube",
   "service_schedule",
+  "donation_info",
 ] as const;
 
 export async function PUT(request: Request) {

@@ -231,6 +231,15 @@ main.admin-main{ padding: 34px 44px 44px; max-width: 1040px; }
 .simple-table{ width:100%; border-collapse:collapse; }
 .simple-table th{ text-align:left; font-family:var(--font-mono); font-size:0.68rem; letter-spacing:1px; text-transform:uppercase; color:var(--ink-soft); padding: 0 10px 12px; border-bottom:1px solid var(--line); }
 .simple-table td{ padding: 13px 10px; border-bottom:1px solid var(--line); font-size:0.87rem; vertical-align:middle; }
+
+/* Mayordomía — montos y estados */
+.amount-in{ color:#1d7a53; font-weight:700; }
+.amount-out{ color:#b03a2e; font-weight:700; }
+.pill{ display:inline-block; padding:3px 10px; border-radius:999px; font-family:var(--font-mono); font-size:0.68rem; letter-spacing:.4px; white-space:nowrap; }
+.pill-ok{ background:rgba(29,122,83,.12); color:#1d7a53; }
+.pill-warn{ background:rgba(196,148,32,.15); color:#8a6a14; }
+.pill-danger{ background:rgba(176,58,46,.12); color:#b03a2e; }
+.pill-mut{ background:rgba(10,43,60,.08); color:var(--ink-soft); }
 .badge{ font-family:var(--font-mono); font-size:0.66rem; padding:4px 10px; border-radius:999px; font-weight:600; white-space:nowrap; }
 .badge-nuevo{ background: rgba(242,184,75,0.18); color:#8a640c; }
 .badge-contactado{ background: rgba(79,163,209,0.15); color:#1a5f8f; }

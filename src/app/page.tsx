@@ -9,6 +9,7 @@ import type { Session } from "@/lib/types";
 export default async function Home() {
   let liveSession: Session | null = null;
   let upcoming: Session[] = [];
+  let monthTotals: { ingresos: number; egresos: number } | null = null;
 
   try {
     const supabase = await createClient();
@@ -40,6 +41,25 @@ export default async function Home() {
         .order("starts_at", { ascending: true })
         .limit(3);
       upcoming = (up as Session[]) ?? [];
+
+      // Transparencia financiera del mes en curso (solo montos agregados)
+      const now = new Date();
+      const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+      const { data: txs } = await supabase
+        .from("transactions")
+        .select("kind, amount, status, approval_status")
+        .eq("tenant_id", tenant.id)
+        .gte("occurred_at", monthStart.toISOString());
+      if (txs) {
+        let ingresos = 0;
+        let egresos = 0;
+        for (const t of txs) {
+          const amt = Number(t.amount) || 0;
+          if (t.kind === "ingreso" && t.status === "confirmado") ingresos += amt;
+          if (t.kind === "egreso" && t.approval_status === "aprobado") egresos += amt;
+        }
+        monthTotals = { ingresos, egresos };
+      }
     }
   } catch {}
 
@@ -337,25 +357,37 @@ export default async function Home() {
               <h2>Ofrendas y diezmos, con transparencia</h2>
               <p>
                 Un registro claro de ingresos y egresos: diezmos, ofrendas,
-                pagos pastorales y gastos de operación. Muy pronto podrás
-                contribuir en línea desde cualquier parte del mundo.
+                pagos pastorales y gastos de operación. Contribuye en línea
+                desde cualquier parte del mundo.
               </p>
             </div>
             <div className="stew-grid">
               <div className="stew-card">
                 <h3>Transparencia total</h3>
                 <p style={{ color: "var(--ink-soft)", lineHeight: 1.65 }}>
-                  Cada movimiento financiero de la congregación será registrado
-                  por Tesorería y aprobado por el Pastorado, con reportes
-                  mensuales exportables visibles para los miembros.
+                  Cada movimiento financiero de la congregación es registrado
+                  por Tesorería y los egresos requieren aprobación del
+                  Pastorado, con reportes mensuales exportables.
                 </p>
-                <span className="phase-note">Módulo activable en Fase 4</span>
+                {monthTotals && (
+                  <p style={{ fontSize: "0.85rem", marginBottom: 0 }}>
+                    <b>Este mes:</b>{" "}
+                    <span className="amount-in">
+                      +S/ {monthTotals.ingresos.toFixed(2)}
+                    </span>{" "}
+                    ·{" "}
+                    <span className="amount-out">
+                      −S/ {monthTotals.egresos.toFixed(2)}
+                    </span>
+                  </p>
+                )}
               </div>
               <div className="stew-mini">
                 <h4>Da tu diezmo u ofrenda en línea</h4>
                 <p>
-                  Contribuye desde cualquier lugar del mundo, de forma segura,
-                  y recibe tu comprobante automáticamente.
+                  Transferencia, Yape, Plin o tarjeta — desde cualquier lugar
+                  del mundo. Tu comprobante se genera automáticamente al
+                  confirmarse el depósito.
                 </p>
                 <div
                   style={{
@@ -364,9 +396,12 @@ export default async function Home() {
                     flexWrap: "wrap",
                   }}
                 >
-                  <span className="method-chip tag">Transferencia</span>
-                  <span className="method-chip tag">Tarjeta</span>
-                  <span className="method-chip tag">Billetera digital</span>
+                  <a href="/donar" className="btn btn-primary" style={{ textDecoration: "none" }}>
+                    Dar ahora 💛
+                  </a>
+                  <a href="#contacto" className="btn btn-secondary" style={{ textDecoration: "none" }}>
+                    Preguntar
+                  </a>
                 </div>
               </div>
             </div>

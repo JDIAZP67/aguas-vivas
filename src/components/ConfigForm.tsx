@@ -47,6 +47,7 @@ export default function ConfigForm({ tenant }: Props) {
       instagram: String(fd.get("instagram") ?? "").trim(),
       youtube: String(fd.get("youtube") ?? "").trim(),
       service_schedule: String(fd.get("service_schedule") ?? "").trim(),
+      donation_info: String(fd.get("donation_info") ?? "").trim(),
     };
 
     try {
@@ -173,6 +174,19 @@ export default function ConfigForm({ tenant }: Props) {
               name="service_schedule"
               defaultValue={tenant.service_schedule ?? ""}
               placeholder="Dom 10:00 am · Mié 7:00 pm"
+              style={inputStyle}
+            />
+          </div>
+          <div className="field full">
+            <label htmlFor="donation_info">
+              Cuentas para diezmos y ofrendas (visible en /donar)
+            </label>
+            <textarea
+              id="donation_info"
+              name="donation_info"
+              defaultValue={tenant.donation_info ?? ""}
+              placeholder={"BCP Cta. Corriente: 000-0000000-00\nYape / Plin: +51 987 654 321"}
+              rows={5}
               style={inputStyle}
             />
           </div>

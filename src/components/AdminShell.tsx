@@ -6,8 +6,8 @@ import { ROLE_LABELS, type Profile } from "@/lib/types";
 const NAV = [
   { href: "/admin", label: "Panel general" },
   { href: "/admin/en-vivo", label: "Contenido & video" },
+  { href: "/admin/mayordomia", label: "Mayordomía" },
   { href: null, label: "Niveles de estudio 🔒" },
-  { href: null, label: "Mayordomía 🔒" },
   { href: null, label: "Configuración" },
 ];
 

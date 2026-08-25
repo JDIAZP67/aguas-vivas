@@ -26,6 +26,12 @@ export default function SiteFooter() {
             <li>
               <a href="/#mayordomia">Mayordomía</a>
             </li>
+            <li>
+              <Link href="/biblioteca">Biblioteca</Link>
+            </li>
+            <li>
+              <Link href="/donar">Dar mi ofrenda 💛</Link>
+            </li>
           </ul>
         </div>
         <div className="foot-col">
