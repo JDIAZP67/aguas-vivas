@@ -7,7 +7,7 @@ import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
 import type { Course, Lesson } from "@/lib/lesson";
 
 export const metadata = {
-  title: "Estudios bíblicos — Aguas Vivas",
+  title: "Estudios bíblicos",
 };
 
 export default async function EstudiosPage() {

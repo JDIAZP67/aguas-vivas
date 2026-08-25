@@ -89,16 +89,24 @@ export async function PUT(request: Request) {
     );
   }
 
-  const { error: updateErr } = await supabase
+  const { data: updated, error: updateErr } = await supabase
     .from("tenants")
     .update(updates)
-    .eq("id", tenant.id);
+    .eq("id", tenant.id)
+    .select("id");
 
   if (updateErr) {
     console.error("[tenant] error al actualizar:", updateErr.message);
     return NextResponse.json(
       { ok: false, error: "No se pudieron guardar los cambios en la base de datos." },
       { status: 503 },
+    );
+  }
+
+  if (!updated?.length) {
+    return NextResponse.json(
+      { ok: false, error: "Sin permisos para modificar esta configuración. Verifica tu rol en el panel de Supabase (Authentication → Users)." },
+      { status: 403 },
     );
   }
 

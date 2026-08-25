@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter, IBM_Plex_Mono } from "next/font/google";
+import { getTenantName } from "@/lib/tenant";
 import "./globals.css";
 
 const inter = Inter({
@@ -21,11 +22,16 @@ const plexMono = IBM_Plex_Mono({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Aguas Vivas — Evangelio, discipulado y comunidad",
-  description:
-    "Plataforma digital evangelística: conoce el Plan de Salvación, crece en la fe con estudios bíblicos por niveles y conéctate con la comunidad de Aguas Vivas.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const name = await getTenantName();
+  return {
+    title: {
+      template: `%s — ${name}`,
+      default: `${name} — Evangelio, discipulado y comunidad`,
+    },
+    description: `Plataforma digital evangelística: conoce el Plan de Salvación, crece en la fe con estudios bíblicos por niveles y conéctate con la comunidad de ${name}.`,
+  };
+}
 
 export default function RootLayout({
   children,

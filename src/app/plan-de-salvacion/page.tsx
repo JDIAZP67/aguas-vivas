@@ -68,7 +68,7 @@ const steps: Array<{ title: string; text: string; verses: Verse[] }> = [
 ];
 
 export const metadata = {
-  title: "Plan de Salvación — Aguas Vivas",
+  title: "Plan de Salvación",
   description:
     "Cuatro verdades bíblicas que pueden cambiar tu vida para siempre. Descubre cómo recibir a Jesús hoy.",
 };

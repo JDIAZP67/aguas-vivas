@@ -6,7 +6,7 @@ import type { Profile } from "@/lib/types";
 import type { Transaction } from "@/lib/types";
 
 export const metadata = {
-  title: "Mayordomía — Panel Aguas Vivas",
+  title: "Mayordomía — Panel",
 };
 
 const MONTHS = [
@@ -70,14 +70,16 @@ export default async function MayordomiaPage({
   const { start, end } = monthBounds(mes);
 
   let transactions: Transaction[] = [];
+  let tenantName: string | undefined;
   try {
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("id")
+      .select("id, name")
       .eq("slug", "aguas-vivas")
       .maybeSingle();
 
     if (tenant) {
+      tenantName = tenant.name;
       const { data } = await supabase
         .from("transactions")
         .select("*")
@@ -105,7 +107,7 @@ export default async function MayordomiaPage({
   const nextHref = `/admin/mayordomia?mes=${shiftMonth(mes, 1)}`;
 
   return (
-    <AdminShell active="/admin/mayordomia" profile={sessionUser}>
+    <AdminShell active="/admin/mayordomia" profile={sessionUser} tenantName={tenantName}>
       <div className="page-head">
         <div>
           <div className="section-eyebrow">Mayordomía</div>

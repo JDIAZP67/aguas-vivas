@@ -10,14 +10,16 @@ export default async function Home() {
   let liveSession: Session | null = null;
   let upcoming: Session[] = [];
   let monthTotals: { ingresos: number; egresos: number } | null = null;
+  let tenantName: string | undefined;
 
   try {
     const supabase = await createClient();
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("id")
+      .select("id, name")
       .eq("slug", DEFAULT_TENANT_SLUG)
       .maybeSingle();
+    tenantName = tenant?.name;
 
     if (tenant) {
       const { data: lv } = await supabase
@@ -71,7 +73,7 @@ export default async function Home() {
       <main>
         <section className="hero">
           <div className="hero-content">
-            <div className="eyebrow">Plataforma digital · Aguas Vivas</div>
+            <div className="eyebrow">Plataforma digital · {tenantName ?? "Aguas Vivas"}</div>
             <h1>
               Un mensaje que <em>cruza los mares</em>,<br />
               hasta lo último de la tierra

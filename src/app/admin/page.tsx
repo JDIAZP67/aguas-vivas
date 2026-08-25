@@ -7,7 +7,7 @@ import ConfigForm from "@/components/ConfigForm";
 import AdminShell from "@/components/AdminShell";
 
 export const metadata = {
-  title: "Panel de administración — Aguas Vivas",
+  title: "Panel de administración",
 };
 
 export default async function AdminPage() {
@@ -82,7 +82,7 @@ export default async function AdminPage() {
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) && Boolean(tenant);
 
   return (
-    <AdminShell active="/admin" profile={profile}>
+    <AdminShell active="/admin" profile={profile} tenantName={tenant?.name}>
       <div className="page-head">
         <div>
           <div className="page-eyebrow">Configuración de la iglesia</div>

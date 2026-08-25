@@ -3,7 +3,7 @@ import SiteFooter from "@/components/SiteFooter";
 import AuthPanel from "@/components/AuthPanel";
 
 export const metadata = {
-  title: "Acceso de miembros — Aguas Vivas",
+  title: "Acceso de miembros",
 };
 
 export default function AccesoPage() {

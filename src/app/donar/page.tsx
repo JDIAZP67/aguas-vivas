@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
 
 export const metadata = {
-  title: "Diezmos y ofrendas — Aguas Vivas",
+  title: "Diezmos y ofrendas",
 };
 
 export default async function DonarPage() {

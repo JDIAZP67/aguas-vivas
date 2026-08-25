@@ -6,7 +6,7 @@ import AdminShell from "@/components/AdminShell";
 import SessionsManager from "@/components/SessionsManager";
 
 export const metadata = {
-  title: "Contenido & video — Aguas Vivas",
+  title: "Contenido & video",
 };
 
 export default async function AdminEnVivoPage() {
@@ -36,15 +36,27 @@ export default async function AdminEnVivoPage() {
     profile = null;
   }
 
+  let tenantName: string | undefined;
+  let tenantId: string | null = null;
+  try {
+    const { data } = await supabase
+      .from("tenants")
+      .select("id, name")
+      .eq("slug", DEFAULT_TENANT_SLUG)
+      .maybeSingle();
+    tenantId = data?.id ?? null;
+    tenantName = data?.name ?? undefined;
+  } catch {}
+
   let sessions: Session[] = [];
-  if (profile && ["super_admin", "pastor", "maestro"].includes(profile.role)) {
+  if (tenantId && profile && ["super_admin", "pastor", "maestro"].includes(profile.role)) {
     try {
       const { data } = await supabase
         .from("sessions")
         .select(
           "id, tenant_id, title, type, course_id, host_name, starts_at, duration_min, video_url, notes, status",
         )
-        .eq("tenant_id", (await supabase.from("tenants").select("id").eq("slug", DEFAULT_TENANT_SLUG).maybeSingle()).data?.id ?? "")
+        .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false });
       sessions = (data as Session[]) ?? [];
     } catch {}
@@ -55,7 +67,7 @@ export default async function AdminEnVivoPage() {
     ["super_admin", "pastor", "maestro"].includes(profile!.role);
 
   return (
-    <AdminShell active="/admin/en-vivo" profile={profile}>
+    <AdminShell active="/admin/en-vivo" profile={profile} tenantName={tenantName}>
       <div className="page-head">
         <div>
           <div className="page-eyebrow">Contenido &amp; video</div>

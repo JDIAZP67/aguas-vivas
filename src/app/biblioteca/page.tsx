@@ -7,7 +7,7 @@ import { toEmbedUrl } from "@/lib/youtube";
 import type { Session } from "@/lib/types";
 
 export const metadata = {
-  title: "Biblioteca de grabaciones — Aguas Vivas",
+  title: "Biblioteca de grabaciones",
 };
 
 export default async function BibliotecaPage() {

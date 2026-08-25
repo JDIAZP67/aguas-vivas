@@ -1,11 +1,14 @@
 import Link from "next/link";
+import { getTenantName } from "@/lib/tenant";
 
-export default function SiteFooter() {
+export default async function SiteFooter() {
+  const name = await getTenantName();
+
   return (
     <footer className="site-footer">
       <div className="foot-grid">
         <div>
-          <div className="foot-brand">Aguas Vivas</div>
+          <div className="foot-brand">{name}</div>
           <p style={{ fontSize: "0.86rem", maxWidth: 260, lineHeight: 1.6 }}>
             Una plataforma para predicar, enseñar y servir — llevando el
             evangelio a toda criatura.
@@ -64,7 +67,7 @@ export default function SiteFooter() {
         </div>
       </div>
       <div className="foot-bottom">
-        <span>© {new Date().getFullYear()} Aguas Vivas.</span>
+        <span>© {new Date().getFullYear()} {name}.</span>
         <span>Marcos 16:15</span>
       </div>
     </footer>

@@ -7,25 +7,28 @@ const NAV = [
   { href: "/admin", label: "Panel general" },
   { href: "/admin/en-vivo", label: "Contenido & video" },
   { href: "/admin/mayordomia", label: "Mayordomía" },
-  { href: null, label: "Niveles de estudio 🔒" },
-  { href: null, label: "Configuración" },
+  { href: "/admin/estudios", label: "Niveles de estudio" },
+  { href: "/admin", label: "Configuración" },
 ];
 
 export default function AdminShell({
   active,
   profile,
+  tenantName,
   children,
 }: {
   active: string;
   profile: Profile | null;
+  tenantName?: string;
   children: ReactNode;
 }) {
+  const name = tenantName || "Aguas Vivas";
   return (
     <div className="app">
       <aside className="sidebar">
         <Link href="/" className="side-brand">
           <span className="mark" />
-          <span>Aguas Vivas</span>
+          <span>{name}</span>
         </Link>
 
         <ul className="side-nav">
@@ -57,13 +60,25 @@ export default function AdminShell({
             {profile ? ROLE_LABELS[profile.role] : "Miembro"}
           </div>
           <p>
-            Los módulos con candado se activan en fases siguientes del proyecto.
+            Gestiona la información de tu iglesia, contenido, finanzas y niveles de estudio.
           </p>
           <LogoutButton />
         </div>
       </aside>
 
-      <main className="admin-main">{children}</main>
+      <main className="admin-main">
+        {profile && !["super_admin", "pastor", "maestro"].includes(profile.role) && (
+          <div className="perm-note" style={{ marginBottom: 24 }}>
+            <span>⚠️</span>
+            <div>
+              <b>Tu rol es "{ROLE_LABELS[profile.role]}"</b>
+              No puedes guardar cambios en esta sección. Si eres el administrador,
+              ejecuta el script de configuración de roles en el SQL Editor de Supabase.
+            </div>
+          </div>
+        )}
+        {children}
+      </main>
     </div>
   );
 }

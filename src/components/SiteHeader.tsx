@@ -1,12 +1,15 @@
 import Link from "next/link";
+import { getTenantName } from "@/lib/tenant";
 
-export default function SiteHeader() {
+export default async function SiteHeader() {
+  const name = await getTenantName();
+
   return (
     <header className="public-header">
       <div className="nav-wrap">
         <Link href="/" className="brand">
           <span className="brand-mark" />
-          Aguas Vivas
+          {name}
         </Link>
         <nav className="main-nav">
           <ul>
