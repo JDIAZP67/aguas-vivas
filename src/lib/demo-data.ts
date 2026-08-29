@@ -1,4 +1,4 @@
-import type { Tenant } from "./types";
+import type { Session, Tenant } from "./types";
 import type { Course, Lesson } from "./lesson";
 import { DEFAULT_TENANT_SLUG } from "./constants";
 
@@ -487,3 +487,66 @@ Señor Jesús, gracias por tu amor que me alcanzó. Me entrego a Ti de todo cora
 ];
 
 export const DEMO_LESSONS: Lesson[] = SEEDS.map(toLesson);
+
+export const DEMO_LIVE_SESSION: Session = {
+  id: "demo-session-en-vivo",
+  tenant_id: DEMO_TENANT.id,
+  title: "Predicación: muestra de transmisión en vivo",
+  type: "predicacion",
+  course_id: null,
+  host_name: "Pastorado",
+  starts_at: new Date().toISOString(),
+  duration_min: 60,
+  video_url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
+  notes: "Servicio general — abierto a toda la congregación y visitantes.",
+  status: "en_vivo",
+};
+
+const futureDate = (days: number, hour: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(hour, 0, 0, 0);
+  return d.toISOString();
+};
+
+export const DEMO_UPCOMING: Session[] = [
+  {
+    id: "demo-upcoming-1",
+    tenant_id: DEMO_TENANT.id,
+    title: "Predicación dominical",
+    type: "predicacion",
+    course_id: null,
+    host_name: "Pastorado",
+    starts_at: futureDate(1, 10),
+    duration_min: 90,
+    video_url: null,
+    notes: "Servicio general — abierto a toda la congregación y visitantes.",
+    status: "programada",
+  },
+  {
+    id: "demo-upcoming-2",
+    tenant_id: DEMO_TENANT.id,
+    title: "Clase Nivel 1 — Fundamentos",
+    type: "clase",
+    course_id: DEMO_COURSE.id,
+    host_name: "Maestro de turno",
+    starts_at: futureDate(3, 19),
+    duration_min: 60,
+    video_url: null,
+    notes: "Sesión en vivo para el Nivel 1 de estudios bíblicos.",
+    status: "programada",
+  },
+  {
+    id: "demo-upcoming-3",
+    tenant_id: DEMO_TENANT.id,
+    title: "Anuncios semanales",
+    type: "anuncio",
+    course_id: null,
+    host_name: "Coordinación",
+    starts_at: futureDate(5, 18),
+    duration_min: 30,
+    video_url: null,
+    notes: "Actividades, bautismos, campañas de evangelismo y avisos generales.",
+    status: "programada",
+  },
+];

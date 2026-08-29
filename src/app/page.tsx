@@ -4,6 +4,7 @@ import SiteFooter from "@/components/SiteFooter";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
 import { getTenant, isDemoMode } from "@/lib/data";
+import { DEMO_LIVE_SESSION, DEMO_TENANT, DEMO_UPCOMING } from "@/lib/demo-data";
 import { toEmbedUrl } from "@/lib/youtube";
 import type { Session } from "@/lib/types";
 
@@ -14,8 +15,13 @@ export default async function Home() {
   let tenantName: string | undefined;
 
   const demo = isDemoMode();
-  const demoTenant = await getTenant();
+  const demoTenant = demo ? DEMO_TENANT : await getTenant();
   tenantName = demoTenant?.name;
+
+  if (demo) {
+    liveSession = DEMO_LIVE_SESSION;
+    upcoming = DEMO_UPCOMING;
+  }
 
   try {
     const supabase = await createClient();

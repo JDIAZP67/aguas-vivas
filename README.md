@@ -103,6 +103,12 @@ El sitio detecta automáticamente el modo en el que corre:
 > La capa de datos vive centralizada en `src/lib/data.ts` (con `src/lib/demo-data.ts` como
 > respaldo), así que cambiar de base de datos más adelante es un cambio en un solo punto.
 
+**Demo de transmisión en vivo:** en modo demo, la sección "En vivo" de la home muestra un
+**video de ejemplo** (Big Buck Bunny, clip público) con el badge **EN VIVO**, y lista las
+**próximas sesiones** de muestra en las pestañas laterales. Esto sirve para previsualizar el
+diseño del reproductor sin necesidad de base de datos. Cuando conectes la BD y crees tus
+sesiones reales en `/admin/en-vivo`, se reemplaza automáticamente.
+
 ## ✅ Qué incluye la Fase 1 (MVP Evangelístico)
 
 | Módulo | Estado |
