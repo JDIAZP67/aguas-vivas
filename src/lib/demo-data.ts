@@ -516,7 +516,7 @@ export const DEMO_UPCOMING: Session[] = [
     title: "Predicación dominical",
     type: "predicacion",
     course_id: null,
-    host_name: "Pastorado",
+    host_name: "Pastor Juan",
     starts_at: futureDate(1, 10),
     duration_min: 90,
     video_url: null,
@@ -529,7 +529,7 @@ export const DEMO_UPCOMING: Session[] = [
     title: "Clase Nivel 1 — Fundamentos",
     type: "clase",
     course_id: DEMO_COURSE.id,
-    host_name: "Maestro de turno",
+    host_name: "Hermana María",
     starts_at: futureDate(3, 19),
     duration_min: 60,
     video_url: null,
@@ -542,11 +542,73 @@ export const DEMO_UPCOMING: Session[] = [
     title: "Anuncios semanales",
     type: "anuncio",
     course_id: null,
-    host_name: "Coordinación",
+    host_name: "Hermano Luis",
     starts_at: futureDate(5, 18),
     duration_min: 30,
     video_url: null,
     notes: "Actividades, bautismos, campañas de evangelismo y avisos generales.",
     status: "programada",
+  },
+];
+
+const pastDate = (days: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  d.setHours(11, 0, 0, 0);
+  return d.toISOString();
+};
+
+export const DEMO_RECORDINGS: Session[] = [
+  {
+    id: "demo-rec-1",
+    tenant_id: DEMO_TENANT.id,
+    title: "Predicación — La fe que mueve montañas",
+    type: "predicacion",
+    course_id: null,
+    host_name: "Hermano Pablo",
+    starts_at: pastDate(7),
+    duration_min: 95,
+    video_url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
+    notes: "Culto dominical. Tema central del servicio general.",
+    status: "finalizada",
+  },
+  {
+    id: "demo-rec-2",
+    tenant_id: DEMO_TENANT.id,
+    title: "Clase Nivel 1 — El plan de salvación",
+    type: "clase",
+    course_id: DEMO_COURSE.id,
+    host_name: "Hermana María",
+    starts_at: pastDate(5),
+    duration_min: 60,
+    video_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    notes: "Sesión de estudio para los del Nivel 1.",
+    status: "finalizada",
+  },
+  {
+    id: "demo-rec-3",
+    tenant_id: DEMO_TENANT.id,
+    title: "Predicación — Creciendo en la Palabra",
+    type: "predicacion",
+    course_id: null,
+    host_name: "Pastor Juan",
+    starts_at: pastDate(10),
+    duration_min: 88,
+    video_url: "https://www.youtube.com/watch?v=YsPN5WkBI8E",
+    notes: "Culto general con invitado especial.",
+    status: "finalizada",
+  },
+  {
+    id: "demo-rec-4",
+    tenant_id: DEMO_TENANT.id,
+    title: "Noche de alabanza y oración",
+    type: "predicacion",
+    course_id: null,
+    host_name: "Hermano Luis",
+    starts_at: pastDate(14),
+    duration_min: 120,
+    video_url: "https://www.youtube.com/watch?v=0xk0tGzF-SM",
+    notes: "Reunión de oración abierta a toda la congregación.",
+    status: "finalizada",
   },
 ];

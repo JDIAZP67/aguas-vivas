@@ -1,8 +1,7 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { createClient } from "@/lib/supabase/server";
-import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
+import { getRecordings, isDemoMode } from "@/lib/data";
 import { toEmbedUrl } from "@/lib/youtube";
 import type { Session } from "@/lib/types";
 
@@ -11,29 +10,8 @@ export const metadata = {
 };
 
 export default async function BibliotecaPage() {
-  let recordings: Session[] = [];
-
-  try {
-    const supabase = await createClient();
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("id")
-      .eq("slug", DEFAULT_TENANT_SLUG)
-      .maybeSingle();
-
-    if (tenant) {
-      const { data } = await supabase
-        .from("sessions")
-        .select(
-          "id, tenant_id, title, type, course_id, host_name, starts_at, duration_min, video_url, notes, status",
-        )
-        .eq("tenant_id", tenant.id)
-        .eq("status", "finalizada")
-        .order("starts_at", { ascending: false })
-        .limit(30);
-      recordings = (data as Session[]) ?? [];
-    }
-  } catch {}
+  const recordings = await getRecordings();
+  const demo = isDemoMode();
 
   return (
     <>
@@ -49,6 +27,18 @@ export default async function BibliotecaPage() {
               las predicaciones y clases anteriores para ver cuando quieras.
             </p>
           </div>
+
+          {demo && recordings.length > 0 && (
+            <div className="perm-note">
+              <span>🧪</span>
+              <div>
+                <b>Modo demostración</b>
+                Estas son grabaciones de ejemplo con distintos predicadores.
+                Cuando conectes tu base de datos, aquí aparecerán los cultos
+                que vayas grabando y finalizando.
+              </div>
+            </div>
+          )}
 
           {!recordings.length && (
             <div className="perm-note">

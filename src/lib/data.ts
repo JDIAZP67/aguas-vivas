@@ -1,6 +1,7 @@
 import type { Tenant } from "./types";
 import type { Course, Lesson } from "./lesson";
-import { DEMO_TENANT, DEMO_COURSE, DEMO_LESSONS } from "./demo-data";
+import { DEMO_TENANT, DEMO_COURSE, DEMO_LESSONS, DEMO_RECORDINGS } from "./demo-data";
+import type { Session } from "./types";
 
 export function isDemoMode(): boolean {
   return !process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -114,4 +115,32 @@ export async function getLessonPage(
     next: lessons[index + 1] ?? null,
     lessons,
   };
+}
+
+export async function getRecordings(): Promise<Session[]> {
+  if (isDemoMode()) return DEMO_RECORDINGS;
+
+  try {
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+    const { data: tenant } = await supabase
+      .from("tenants")
+      .select("id")
+      .eq("slug", "aguas-vivas")
+      .maybeSingle();
+    if (!tenant) return [];
+
+    const { data } = await supabase
+      .from("sessions")
+      .select(
+        "id, tenant_id, title, type, course_id, host_name, starts_at, duration_min, video_url, notes, status",
+      )
+      .eq("tenant_id", tenant.id)
+      .eq("status", "finalizada")
+      .order("starts_at", { ascending: false })
+      .limit(30);
+    return (data as Session[]) ?? [];
+  } catch {
+    return [];
+  }
 }

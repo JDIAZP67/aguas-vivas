@@ -165,6 +165,21 @@ export default function LiveSection({ liveSession, upcoming }: LiveSectionProps)
                   </span>
                 )}
               </div>
+              {s.host_name && (
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "0.72rem",
+                    color: "var(--sky-mid)",
+                    display: "block",
+                    marginBottom: 6,
+                    marginTop: -4,
+                  }}
+                >
+                  {s.status === "en_vivo" ? "● " : "— "}
+                  {s.host_name}
+                </span>
+              )}
               <p>{s.notes}</p>
             </button>
           );

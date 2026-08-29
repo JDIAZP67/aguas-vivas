@@ -103,11 +103,13 @@ El sitio detecta automáticamente el modo en el que corre:
 > La capa de datos vive centralizada en `src/lib/data.ts` (con `src/lib/demo-data.ts` como
 > respaldo), así que cambiar de base de datos más adelante es un cambio en un solo punto.
 
-**Demo de transmisión en vivo:** en modo demo, la sección "En vivo" de la home muestra un
-**video de ejemplo** (Big Buck Bunny, clip público) con el badge **EN VIVO**, y lista las
-**próximas sesiones** de muestra en las pestañas laterales. Esto sirve para previsualizar el
-diseño del reproductor sin necesidad de base de datos. Cuando conectes la BD y crees tus
-sesiones reales en `/admin/en-vivo`, se reemplaza automáticamente.
+**Demo de transmisión en vivo y grabaciones:** en modo demo, la sección "En vivo" de la
+home muestra un **video de ejemplo** (Big Buck Bunny, clip público) con el badge **EN VIVO**,
+varias **próximas sesiones** con distintos predicadores en las pestañas laterales (clicables),
+y la **Biblioteca** (`/biblioteca`) lista grabaciones de ejemplo de varios invitados (Hno.
+Pablo, Hna. María, Pastor Juan, etc.). Todo sirve para previsualizar el diseño sin base de
+datos. Cuando conectes la BD y crees tus sesiones reales en `/admin/en-vivo`, se reemplaza
+automáticamente por tus cultos.
 
 ## ✅ Qué incluye la Fase 1 (MVP Evangelístico)
 
@@ -139,6 +141,31 @@ Después del `schema.sql`, ejecuta en el SQL Editor de Supabase en este orden:
 2. En `/admin/en-vivo`, programa la sesión con fecha y pega el enlace de YouTube.
 3. Al comenzar, presiona **Iniciar 🔴**: la home muestra el reproductor automáticamente.
 4. Al terminar, presiona **Finalizar**: la grabación queda en `/biblioteca`.
+
+### Cómo subir videos (grabaciones de cultos)
+
+Los videos **no se suben como archivo al sitio**: se publican en YouTube y luego se pega el
+enlace. Así no consumes almacenamiento ni ancho de banda propios:
+
+1. **Sube el video a YouTube** (la grabación del culto). Puedes dejarlo como *no listado*
+   (solo para quienes tengan el enlace) o público.
+2. Copia el enlace del video (ej. `https://youtube.com/watch?v=…`).
+3. Entra a **`/admin/en-vivo`** → **"+ Programar sesión"**.
+4. Llena: **Título**, **Anfitrión/Predicador**, **Fecha y hora**, **Enlace de YouTube**, y
+   opcionalmente **Notas**. Guarda.
+5. La sesión queda como **Programada**. Cuando sea el momento, presiona **Iniciar 🔴** para
+   pasarla a **EN VIVO** en la home.
+6. Al terminar, presiona **Finalizar**: la sesión pasa a **grabación** y queda disponible en
+   **`/biblioteca`** para verla cuando quieras.
+
+> 💡 **Disponibilidad 24/7:** basta con que una sesión esté en estado **Finalizada** con su
+> enlace de YouTube para que quede publicada de forma permanente en `/biblioteca`. Los cultos
+> grabados se pueden ver **a cualquier hora, cualquier día** — no desaparecen al terminar la
+> transmisión. Cada grabación puede tener un **predicador/invitado distinto** (`host_name`); la
+> Biblioteca muestra el nombre junto a cada video.
+
+Los pasos 3-6 requieren haber **conectado la base de datos** y entrar con un usuario con rol
+editor (pastor / maestro / súper admin) en Supabase.
 
 ### Cómo funciona la mayordomía
 
