@@ -64,10 +64,18 @@ create policy profiles_self_read on public.profiles for select using (
 );
 
 -- Cada quien edita lo básico de su perfil; solo súper admin cambia roles
-create policy profiles_self_update on public.profiles for update using (
-  id = auth.uid()
-  or public.av_role() = 'super_admin'
-);
+create policy profiles_self_update on public.profiles
+  for update
+  using (
+    id = auth.uid()
+    or public.av_role() = 'super_admin'
+  )
+  -- Un miembro solo puede editar su perfil conservando su propio rol;
+  -- únicamente un super_admin puede asignar roles.
+  with check (
+    public.av_role() = 'super_admin'
+    or (id = auth.uid() and role::text = public.av_role())
+  );
 
 -- ============================================================
 -- 4. SALVATION_DECISIONS (decisiones de fe)
