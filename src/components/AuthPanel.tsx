@@ -34,9 +34,13 @@ export default function AuthPanel() {
       const supabase = createClient();
 
       if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-        setError(
-          "📦 Estamos en modo demostración y el registro de cuentas está desactivado por ahora.\n\nPuedes navegar libremente por los estudios y el Plan de Salvación. Cuando la congregación conecte su base de datos, el acceso y el guardado de tu progreso se activarán.",
-        );
+        if (!email || !password) {
+          setError("Ingresa tu correo y contraseña para continuar.");
+          return;
+        }
+        document.cookie = `${"av_demo_auth"}=1; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
+        router.push("/admin");
+        router.refresh();
         return;
       }
 
@@ -164,6 +168,13 @@ export default function AuthPanel() {
               : "Crear mi cuenta gratis"}
         </button>
       </form>
+
+      {!process.env.NEXT_PUBLIC_SUPABASE_URL && (
+        <div className="form-status" style={{ marginTop: 16 }}>
+          🧪 Modo demostración: usa cualquier correo y contraseña para entrar al
+          panel. Los cambios no se guardan en base de datos.
+        </div>
+      )}
 
       <p className="auth-alt" style={{ marginTop: 22 }}>
         ¿Aún no conoces a Jesús?{" "}

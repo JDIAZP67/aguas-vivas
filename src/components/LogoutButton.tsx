@@ -3,13 +3,19 @@
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+const DEMO_AUTH_COOKIE = "av_demo_auth";
+
 export default function LogoutButton() {
   const router = useRouter();
 
   async function handleLogout() {
     try {
-      const supabase = createClient();
-      await supabase.auth.signOut();
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        const supabase = createClient();
+        await supabase.auth.signOut();
+      } else if (typeof document !== "undefined") {
+        document.cookie = `${DEMO_AUTH_COOKIE}=; path=/; max-age=0`;
+      }
     } catch {}
     router.push("/");
     router.refresh();

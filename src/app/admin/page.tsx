@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
+import { isDemoMode } from "@/lib/data";
+import { getDemoProfile } from "@/lib/demo-auth";
 import type { Tenant, Profile } from "@/lib/types";
 import ConfigForm from "@/components/ConfigForm";
 import AdminShell from "@/components/AdminShell";
@@ -11,6 +13,43 @@ export const metadata = {
 };
 
 export default async function AdminPage() {
+  const demoProfile = await getDemoProfile();
+  const demo = isDemoMode() && demoProfile !== null;
+
+  if (isDemoMode() && !demoProfile) redirect("/acceso");
+
+  if (demo) {
+    return (
+      <AdminShell active="/admin" profile={demoProfile} tenantName="Aguas Vivas (Demo)">
+        <div className="page-head">
+          <div>
+            <div className="page-eyebrow">Configuración de la iglesia</div>
+            <h1>Aguas Vivas (Demo)</h1>
+          </div>
+        </div>
+        <div className="perm-note" style={{ marginBottom: 24 }}>
+          <span>🧪</span>
+          <div>
+            <b>Modo demostración</b>
+            Estás en el panel con datos de ejemplo. Para ver dónde cargas y
+            gestionas los videos, entra a "Contenido &amp; video".
+          </div>
+        </div>
+        <p className="subhead" style={{ marginBottom: 20 }}>
+          El panel general (configuración, decisiones de fe y finanzas)
+          requiere conexión a la base de datos. Explora el gestor de
+          transmisiones y grabaciones abajo.
+        </p>
+        <Link
+          href="/admin/en-vivo"
+          style={{ color: "var(--sky-mid)", fontWeight: 700 }}
+        >
+          Ir a Contenido &amp; video (subir videos) →
+        </Link>
+      </AdminShell>
+    );
+  }
+
   const supabase = await createClient();
 
   let user = null;

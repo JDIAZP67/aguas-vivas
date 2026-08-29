@@ -75,6 +75,47 @@ export default function SessionsManager({ initialSessions, canEdit }: Props) {
     setBusy(true);
     setMsg(null);
     try {
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        if (method !== "DELETE") {
+          const current: Session | undefined =
+            method === "PUT"
+              ? sessions.find((x) => x.id === String(body.id ?? ""))
+              : undefined;
+
+          if (method === "PUT" && !current) {
+            setMsg({ type: "err", text: "Sesión no encontrada." });
+            return null;
+          }
+
+          if (method === "POST") {
+            const s: Session = {
+              id: `demo-${Date.now()}`,
+              tenant_id: "demo-tenant-aguas-vivas",
+              title: String(body.title ?? "").trim() || "Sesión",
+              type: (body.type as Session["type"]) ?? "predicacion",
+              course_id: null,
+              host_name: String(body.host_name ?? "").trim() || null,
+              starts_at: body.starts_at
+                ? new Date(String(body.starts_at)).toISOString()
+                : null,
+              duration_min: Number(body.duration_min) || 60,
+              video_url: String(body.video_url ?? "").trim() || null,
+              notes: String(body.notes ?? "").trim() || null,
+              status: "programada",
+            };
+            setMsg({ type: "ok", text: okText });
+            return s;
+          }
+
+          const updated = { ...current, ...(body as Partial<Session>) } as Session;
+          setMsg({ type: "ok", text: okText });
+          return updated;
+        }
+
+        setMsg({ type: "ok", text: okText });
+        return { id: String(body.id ?? "") } as unknown as Session;
+      }
+
       const res = await fetch("/api/sessions", {
         method,
         headers: { "Content-Type": "application/json" },
