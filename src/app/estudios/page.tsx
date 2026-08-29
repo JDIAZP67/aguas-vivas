@@ -1,9 +1,7 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { createClient } from "@/lib/supabase/server";
-import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
+import { getCourses, getLessonsForCourse, isDemoMode } from "@/lib/data";
 import type { Course, Lesson } from "@/lib/lesson";
 
 export const metadata = {
@@ -11,54 +9,35 @@ export const metadata = {
 };
 
 export default async function EstudiosPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/acceso");
-
-  let courses: Course[] = [];
+  let user = null;
   let doneLessonIds = new Set<string>();
 
-  try {
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("id")
-      .eq("slug", DEFAULT_TENANT_SLUG)
-      .maybeSingle();
-
-    if (tenant) {
-      const { data } = await supabase
-        .from("courses")
-        .select("id, slug, level, title, tagline, description, sort_order")
-        .eq("tenant_id", tenant.id)
-        .order("level", { ascending: true });
-      courses = (data as Course[]) ?? [];
-    }
-
-    const { data: progress } = await supabase
-      .from("lesson_progress")
-      .select("lesson_id")
-      .eq("user_id", user.id);
-    doneLessonIds = new Set((progress ?? []).map((r) => r.lesson_id as string));
-  } catch {}
-
-  const courseIds = courses.map((c) => c.id);
-
-  const lessonsByCourse: Record<string, Lesson[]> = {};
-  if (courseIds.length) {
+  if (!isDemoMode()) {
     try {
-      const { data } = await supabase
-        .from("lessons")
-        .select("id, course_id")
-        .in("course_id", courseIds);
-      for (const row of data ?? []) {
-        const cid = row.course_id as string;
-        (lessonsByCourse[cid] ??= []).push(row as Lesson);
+      const { createClient } = await import("@/lib/supabase/server");
+      const supabase = await createClient();
+      const {
+        data: { user: u },
+      } = await supabase.auth.getUser();
+      user = u ?? null;
+
+      if (user) {
+        const { data: progress } = await supabase
+          .from("lesson_progress")
+          .select("lesson_id")
+          .eq("user_id", user.id);
+        doneLessonIds = new Set(
+          (progress ?? []).map((r) => r.lesson_id as string),
+        );
       }
     } catch {}
+  }
+
+  const courses: Course[] = await getCourses();
+
+  const lessonsByCourse: Record<string, Lesson[]> = {};
+  for (const c of courses) {
+    lessonsByCourse[c.id] = await getLessonsForCourse(c.slug);
   }
 
   function progressOf(courseId: string): { pct: number; done: number; total: number } {
@@ -79,32 +58,27 @@ export default async function EstudiosPage() {
             <h2>Tu camino de crecimiento</h2>
             <p>
               Avanza paso a paso por los niveles de estudio. Cada lección
-              completada suma a tu progreso y te prepara para el siguiente
-              nivel.
+              te edifica y te prepara para el siguiente nivel.
             </p>
           </div>
 
-          {!courses.length && (
-            <div className="perm-note">
-              <span>📚</span>
+          {!user && !isDemoMode() ? null : !user ? (
+            <div className="perm-note" style={{ marginBottom: 24 }}>
+              <span>👀</span>
               <div>
-                <b>Aún no hay contenido de estudios</b>
-                Ejecuta en Supabase el archivo{" "}
-                <code>supabase/schema-fase2.sql</code> y luego{" "}
-                <code>supabase/seed-nivel1.sql</code> para activar el Nivel 1.
+                <b>Explorando en modo libre</b>
+                Puedes leer todas las lecciones sin crear cuenta. Si inicias
+                sesión, además podrás guardar tu progreso de estudio.{" "}
+                <Link href="/acceso" style={{ fontWeight: 700 }}>
+                  Crear cuenta o entrar →
+                </Link>
               </div>
             </div>
-          )}
+          ) : null}
 
           <div className="levels-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>
             {courses.map((c) => {
               const p = progressOf(c.id);
-              const locked =
-                c.level > 1 &&
-                courses.some(
-                  (prev) =>
-                    prev.level === c.level - 1 && progressOf(prev.id).pct < 100,
-                );
 
               return (
                 <article key={c.id} className="level-card">
@@ -117,37 +91,34 @@ export default async function EstudiosPage() {
                   <h3>{c.tagline}</h3>
                   <p>{c.description}</p>
 
-                  {locked ? (
+                  {p.total > 0 ? (
                     <>
-                      <div className="level-locked-note">🔒 Bloqueado</div>
-                      <div className="level-foot" style={{ marginTop: 8 }}>
-                        Se habilita al completar el nivel anterior
-                      </div>
-                    </>
-                  ) : p.total > 0 ? (
-                    <>
-                      <div className="progress-row">
-                        <div className="progress-track">
-                          <div
-                            className="progress-fill"
-                            style={{ width: `${p.pct}%` }}
-                          />
-                        </div>
-                        <span className="progress-pct">{p.pct}%</span>
-                      </div>
-                      <div className="level-foot" style={{ marginTop: 8 }}>
-                        {p.done} de {p.total} lecciones completadas
-                      </div>
+                      {user && (
+                        <>
+                          <div className="progress-row">
+                            <div className="progress-track">
+                              <div
+                                className="progress-fill"
+                                style={{ width: `${p.pct}%` }}
+                              />
+                            </div>
+                            <span className="progress-pct">{p.pct}%</span>
+                          </div>
+                          <div className="level-foot" style={{ marginTop: 8 }}>
+                            {p.done} de {p.total} lecciones completadas
+                          </div>
+                        </>
+                      )}
                       <Link
                         href={`/estudios/${c.slug}`}
                         className="pbtn pbtn-solid"
-                        style={{ marginTop: 18 }}
+                        style={{ marginTop: user ? 18 : 14 }}
                       >
-                        {p.done === 0
+                        {user && p.done === 0
                           ? "Comenzar nivel"
-                          : p.done >= p.total
+                          : user && p.done >= p.total
                             ? "Repasar lecciones"
-                            : "Continuar"}
+                            : "Ver lecciones"}
                       </Link>
                     </>
                   ) : (
@@ -170,10 +141,10 @@ export default async function EstudiosPage() {
           <div className="card" style={{ marginTop: 34 }}>
             <h3>¿Cómo funciona el avance?</h3>
             <p style={{ color: "var(--ink-soft)", lineHeight: 1.7 }}>
-              Estudia cada lección con calma, responde las preguntas de
-              reflexión y márcala como completada. Tu maestro o pastor puede ver
-              tu avance para acompañarte. Al terminar un nivel, el siguiente se
-              desbloquea automáticamente.
+              Estudia cada lección con calma y responde las preguntas de
+              reflexión. Si creas tu cuenta podrás marcar lecciones como
+              completadas y tu pastor podrá acompañar tu avance. Sin cuenta,
+              todo el contenido sigue siendo accesible.
             </p>
           </div>
         </div>

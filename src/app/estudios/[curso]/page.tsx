@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { createClient } from "@/lib/supabase/server";
-import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
-import type { Course, Lesson } from "@/lib/lesson";
+import { getCourse, getLessonsForCourse, isDemoMode } from "@/lib/data";
+import type { Lesson } from "@/lib/lesson";
 
 export default async function CursoPage({
   params,
@@ -12,57 +11,41 @@ export default async function CursoPage({
   params: Promise<{ curso: string }>;
 }) {
   const { curso } = await params;
-  const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/acceso");
-
-  let course: Course | null = null;
-  let lessons: Lesson[] = [];
+  let user = null;
   let doneIds = new Set<string>();
 
-  try {
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("id")
-      .eq("slug", DEFAULT_TENANT_SLUG)
-      .maybeSingle();
+  if (!isDemoMode()) {
+    try {
+      const { createClient } = await import("@/lib/supabase/server");
+      const supabase = await createClient();
+      const {
+        data: { user: u },
+      } = await supabase.auth.getUser();
+      user = u ?? null;
+    } catch {}
+  }
 
-    const { data: c } = await supabase
-      .from("courses")
-      .select("id, slug, level, title, tagline, description, sort_order")
-      .eq("slug", curso)
-      .maybeSingle();
-    course = (c as Course) ?? null;
-
-    if (course) {
-      const { data: l } = await supabase
-        .from("lessons")
-        .select(
-          "id, course_id, slug, title, module_label, verse_ref, body, duration_min, sort_order",
-        )
-        .eq("course_id", course.id)
-        .order("sort_order", { ascending: true });
-      lessons = (l as Lesson[]) ?? [];
-
-      if (lessons.length) {
-        const { data: p } = await supabase
-          .from("lesson_progress")
-          .select("lesson_id")
-          .eq("user_id", user.id)
-          .in(
-            "lesson_id",
-            lessons.map((x) => x.id),
-          );
-        doneIds = new Set((p ?? []).map((r) => r.lesson_id as string));
-      }
-    }
-  } catch {}
-
+  const course = await getCourse(curso);
   if (!course) notFound();
+
+  const lessons: Lesson[] = await getLessonsForCourse(course.slug);
+
+  if (user && lessons.length && !isDemoMode()) {
+    try {
+      const { createClient } = await import("@/lib/supabase/server");
+      const supabase = await createClient();
+      const { data: p } = await supabase
+        .from("lesson_progress")
+        .select("lesson_id")
+        .eq("user_id", user.id)
+        .in(
+          "lesson_id",
+          lessons.map((x) => x.id),
+        );
+      doneIds = new Set((p ?? []).map((r) => r.lesson_id as string));
+    } catch {}
+  }
 
   const total = lessons.length;
   const done = lessons.filter((l) => doneIds.has(l.id)).length;
@@ -89,7 +72,7 @@ export default async function CursoPage({
             <p>{course.description}</p>
           </div>
 
-          {total > 0 && (
+          {user && total > 0 && (
             <div className="progress-row" style={{ marginBottom: 30 }}>
               <div className="progress-track">
                 <div className="progress-fill" style={{ width: `${pct}%` }} />
@@ -105,8 +88,21 @@ export default async function CursoPage({
               <span>⏳</span>
               <div>
                 <b>Sin lecciones aún</b>
-                Ejecuta <code>supabase/seed-nivel1.sql</code> en Supabase para
-                cargar el contenido.
+                El contenido de este nivel se está preparando.
+              </div>
+            </div>
+          )}
+
+          {!user && total > 0 && (
+            <div className="perm-note" style={{ marginBottom: 20 }}>
+              <span>👀</span>
+              <div>
+                <b>Modo lectura libre</b>
+                Puedes estudiar todas las lecciones. Para guardar tu progreso,{" "}
+                <Link href="/acceso" style={{ fontWeight: 700 }}>
+                  crea tu cuenta o inicia sesión
+                </Link>
+                .
               </div>
             </div>
           )}
@@ -159,7 +155,7 @@ export default async function CursoPage({
             })}
           </div>
 
-          {total > 0 && done === total && (
+          {user && total > 0 && done === total && (
             <div className="form-status ok" style={{ marginTop: 26 }}>
               🎉 ¡Nivel completado! Habla con tu pastor o maestro para tu
               preparación final y el siguiente paso.

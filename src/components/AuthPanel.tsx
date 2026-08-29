@@ -7,6 +7,10 @@ import { createClient } from "@/lib/supabase/client";
 
 type Mode = "login" | "signup";
 
+function isDemoMode() {
+  return !process.env.NEXT_PUBLIC_SUPABASE_URL;
+}
+
 export default function AuthPanel() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("login");
@@ -30,9 +34,10 @@ export default function AuthPanel() {
       const supabase = createClient();
 
       if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-        throw new Error(
-          "Supabase aún no está configurado. Revisa el archivo .env.local del proyecto.",
+        setError(
+          "📦 Estamos en modo demostración y el registro de cuentas está desactivado por ahora.\n\nPuedes navegar libremente por los estudios y el Plan de Salvación. Cuando la congregación conecte su base de datos, el acceso y el guardado de tu progreso se activarán.",
         );
+        return;
       }
 
       if (mode === "login") {
@@ -136,7 +141,7 @@ export default function AuthPanel() {
         </div>
 
         {error && (
-          <div className="form-status err" role="alert">
+          <div className="form-status err" role="alert" style={{ whiteSpace: "pre-line" }}>
             {error}
           </div>
         )}

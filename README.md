@@ -6,6 +6,13 @@ Plataforma web para que una iglesia evangélica **evangelice en línea** (Plan d
 
 **Stack:** Next.js 16 · React 19 · Supabase (Postgres + Auth + RLS) · TypeScript
 
+> ⚡ **Modo demostración:** el proyecto puede ejecutarse **sin base de datos conectada**.
+> Si falta la variable `NEXT_PUBLIC_SUPABASE_URL`, el sitio funciona en *modo demo*
+> con el **Nivel 1 completo** incluido en el propio código. Esto te permite publicarlo
+> en GitHub/Vercel de inmediato y revisarlo sin tocar ningún dashboard. Para activar
+> el guardado de datos real, solo conecta tu base de datos (ver sección **Modo demo vs.
+> modo producción** abajo).
+
 ---
 
 ## 📁 Estructura del proyecto
@@ -69,6 +76,32 @@ npm run build && npm run start   # producción local
 4. Deploy → tendrás dominio `xxx.vercel.app`. Luego puedes conectar tu propio dominio (ej. `aguasvivas.org`).
 
 ---
+
+## ✨ Modo demo vs. modo producción
+
+El sitio detecta automáticamente el modo en el que corre:
+
+| | **Modo demostración** | **Modo producción** |
+|---|---|---|
+| Condición | Sin `NEXT_PUBLIC_SUPABASE_URL` | Con la URL y key de tu base de datos |
+| Estudios | Nivel 1 completo incluido en el código (`src/lib/demo-data.ts`) | Leído desde la base de datos |
+| Registro/login | Desactivado (aviso amable) | Activo (Supabase Auth) |
+| Progreso de estudios | No se guarda | Se guarda por usuario |
+| Decisiones de fe / donaciones | No disponible | Disponible |
+| Publicación | Funciona en Vercel/GitHub Pages sin nada más | Requiere la base de datos |
+
+**¿Cómo cambio de demo a producción?**
+
+1. Crea tu cuenta en tu proveedor de datos (ej. Supabase, Neon, PlanetScale, etc.).
+2. Ejecuta el esquema inicial y los scripts SQL de fases (`supabase/schema*.sql`).
+3. En **Vercel → Settings → Environment Variables**, agrega:
+   - `NEXT_PUBLIC_SUPABASE_URL` = tu URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = tu clave pública
+4. Redepliega el proyecto. Al detectar la URL, el sitio pasa automáticamente a usar la
+   base de datos real; el contenido demo solo aparece como respaldo si la BD no responde.
+
+> La capa de datos vive centralizada en `src/lib/data.ts` (con `src/lib/demo-data.ts` como
+> respaldo), así que cambiar de base de datos más adelante es un cambio en un solo punto.
 
 ## ✅ Qué incluye la Fase 1 (MVP Evangelístico)
 

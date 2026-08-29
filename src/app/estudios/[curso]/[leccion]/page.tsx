@@ -4,9 +4,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import LessonBody from "@/components/LessonBody";
 import LessonCompleteButton from "@/components/LessonCompleteButton";
-import { createClient } from "@/lib/supabase/server";
-import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
-import type { Course, Lesson } from "@/lib/lesson";
+import { getLessonPage, isDemoMode } from "@/lib/data";
 
 export default async function LeccionPage({
   params,
@@ -14,46 +12,22 @@ export default async function LeccionPage({
   params: Promise<{ curso: string; leccion: string }>;
 }) {
   const { curso, leccion } = await params;
-  const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  let course: Course | null = null;
-  let lessons: Lesson[] = [];
+  let user = null;
   let isDone = false;
 
-  try {
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("id")
-      .eq("slug", DEFAULT_TENANT_SLUG)
-      .maybeSingle();
+  if (!isDemoMode()) {
+    try {
+      const { createClient } = await import("@/lib/supabase/server");
+      const supabase = await createClient();
+      const {
+        data: { user: u },
+      } = await supabase.auth.getUser();
+      user = u ?? null;
 
-    if (tenant) {
-      const { data: c } = await supabase
-        .from("courses")
-        .select("id, slug, level, title, tagline, description, sort_order")
-        .eq("slug", curso)
-        .maybeSingle();
-      course = (c as Course) ?? null;
-
-      if (course) {
-        const { data: l } = await supabase
-          .from("lessons")
-          .select(
-            "id, course_id, slug, title, module_label, verse_ref, body, duration_min, sort_order",
-          )
-          .eq("course_id", course.id)
-          .order("sort_order", { ascending: true });
-        lessons = (l as Lesson[]) ?? [];
-      }
-    }
-
-    if (user && lessons.length) {
-      const current = lessons.find((x) => x.slug === leccion);
-      if (current) {
+      let page = await getLessonPage(curso, leccion);
+      if (user && page) {
+        const current = page.lesson;
         const { data: p } = await supabase
           .from("lesson_progress")
           .select("lesson_id")
@@ -62,15 +36,13 @@ export default async function LeccionPage({
           .maybeSingle();
         isDone = Boolean(p);
       }
-    }
-  } catch {}
+    } catch {}
+  }
 
-  const index = lessons.findIndex((x) => x.slug === leccion);
-  if (!course || index === -1) notFound();
+  const page = await getLessonPage(curso, leccion);
+  if (!page) notFound();
 
-  const lesson = lessons[index];
-  const prev = lessons[index - 1];
-  const next = lessons[index + 1];
+  const { course, lesson, prev, next } = page;
 
   return (
     <>
@@ -93,7 +65,7 @@ export default async function LeccionPage({
             <LessonBody body={lesson.body} />
 
             <div style={{ marginTop: 36 }}>
-              {user ? (
+              {user && !isDemoMode() ? (
                 <LessonCompleteButton lessonId={lesson.id} initialDone={isDone} />
               ) : (
                 <div className="form-status ok">

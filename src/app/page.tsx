@@ -3,6 +3,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
+import { getTenant, isDemoMode } from "@/lib/data";
 import { toEmbedUrl } from "@/lib/youtube";
 import type { Session } from "@/lib/types";
 
@@ -12,14 +13,19 @@ export default async function Home() {
   let monthTotals: { ingresos: number; egresos: number } | null = null;
   let tenantName: string | undefined;
 
+  const demo = isDemoMode();
+  const demoTenant = await getTenant();
+  tenantName = demoTenant?.name;
+
   try {
     const supabase = await createClient();
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("id, name")
-      .eq("slug", DEFAULT_TENANT_SLUG)
-      .maybeSingle();
-    tenantName = tenant?.name;
+    const { data: tenant } = demo
+      ? { data: null }
+      : await supabase
+          .from("tenants")
+          .select("id, name")
+          .eq("slug", DEFAULT_TENANT_SLUG)
+          .maybeSingle();
 
     if (tenant) {
       const { data: lv } = await supabase
