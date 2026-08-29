@@ -1,11 +1,11 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import LiveSection from "@/components/LiveSection";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
 import { getTenant, isDemoMode } from "@/lib/data";
 import { DEMO_LIVE_SESSION, DEMO_TENANT, DEMO_UPCOMING } from "@/lib/demo-data";
-import { toEmbedUrl } from "@/lib/youtube";
 import type { Session } from "@/lib/types";
 
 export default async function Home() {
@@ -77,7 +77,6 @@ export default async function Home() {
     }
   } catch {}
 
-  const embed = toEmbedUrl(liveSession?.video_url ?? null);
   return (
     <>
       <SiteHeader />
@@ -138,162 +137,7 @@ export default async function Home() {
                 congregación.
               </p>
             </div>
-            <div className="live-grid">
-              {liveSession ? (
-                <div className="live-screen">
-                  <div className="live-badge">EN VIVO</div>
-                  {embed ? (
-                    <div
-                      style={{
-                        position: "absolute",
-                        inset: 0,
-                        width: "100%",
-                        height: "100%",
-                      }}
-                    >
-                      <iframe
-                        src={`${embed}?autoplay=1`}
-                        title={liveSession.title}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          border: "none",
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <p className="live-soon" style={{ padding: "0 30px" }}>
-                      Estamos transmitiendo:<br />
-                      <strong style={{ color: "#fff" }}>{liveSession.title}</strong>
-                      <br /><br />
-                      Conéctate por el enlace que compartió la iglesia.
-                    </p>
-                  )}
-                  <div
-                    style={{
-                      position: "absolute",
-                      bottom: 16,
-                      left: 16,
-                      right: 16,
-                      display: "flex",
-                      justifyContent: "space-between",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "0.75rem",
-                      color: embed ? "rgba(244,248,250,0)" : "rgba(244,248,250,0.75)",
-                    }}
-                  >
-                    <span>{liveSession.host_name ?? "Pastorado"}</span>
-                    <span>{embed ? "" : "transmisión activa"}</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="live-screen">
-                  {upcoming.length > 0 ? (
-                    <>
-                      <div className="live-badge" style={{ background: "#1c8a5c" }}>
-                        PRÓXIMA SESIÓN
-                      </div>
-                      <p className="live-soon">
-                        <strong style={{ color: "#fff", fontSize: "1rem" }}>
-                          {upcoming[0].title}
-                        </strong>
-                        <br />
-                        {upcoming[0].starts_at &&
-                          new Date(upcoming[0].starts_at).toLocaleString("es-PE", {
-                            weekday: "long",
-                            day: "numeric",
-                            month: "long",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                      </p>
-                      <div
-                        style={{
-                          position: "absolute",
-                          bottom: 16,
-                          left: 16,
-                          right: 16,
-                          display: "flex",
-                          justifyContent: "space-between",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "0.75rem",
-                          color: "rgba(244,248,250,0.75)",
-                        }}
-                      >
-                        <span>{upcoming[0].host_name ?? "Pastorado"}</span>
-                        <span>te esperamos</span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <p className="live-soon">
-                        No hay transmisiones programadas en este momento.
-                        <br />
-                        Revisa la biblioteca de grabaciones mientras tanto.
-                      </p>
-                      <Link
-                        href="/biblioteca"
-                        className="pbtn pbtn-ghost"
-                        style={{ position: "relative", zIndex: 3 }}
-                      >
-                        Ver biblioteca →
-                      </Link>
-                    </>
-                  )}
-                </div>
-              )}
-
-              <div className="live-tabs">
-                {(upcoming.length
-                  ? upcoming.slice(0, 3)
-                  : [
-                      {
-                        id: "a",
-                        title: "Predicación dominical",
-                        type: "predicacion",
-                        starts_at: null,
-                        notes:
-                          "Servicio general — abierto a toda la congregación y visitantes.",
-                      } as Session,
-                      {
-                        id: "b",
-                        title: "Clases por nivel",
-                        type: "clase",
-                        starts_at: null,
-                        notes:
-                          "Sesiones en vivo para Nivel 1, 2 y 3, con materiales descargables.",
-                      } as Session,
-                      {
-                        id: "c",
-                        title: "Anuncios semanales",
-                        type: "anuncio",
-                        starts_at: null,
-                        notes:
-                          "Actividades, bautismos, campañas de evangelismo y avisos generales.",
-                      } as Session,
-                    ]
-                ).map((s) => (
-                  <div key={s.id} className={`live-tab ${s.id === (upcoming[0]?.id ?? "a") ? "active" : ""}`}>
-                    <div className="live-tab-top">
-                      <h4>{s.title}</h4>
-                      {s.starts_at && (
-                        <span className="tag">
-                          {new Date(s.starts_at).toLocaleDateString("es-PE", {
-                            day: "numeric",
-                            month: "short",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      )}
-                    </div>
-                    <p>{s.notes}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <LiveSection liveSession={liveSession} upcoming={upcoming} />
           </div>
         </section>
 

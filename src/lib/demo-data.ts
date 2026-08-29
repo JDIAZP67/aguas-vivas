@@ -491,10 +491,10 @@ export const DEMO_LESSONS: Lesson[] = SEEDS.map(toLesson);
 export const DEMO_LIVE_SESSION: Session = {
   id: "demo-session-en-vivo",
   tenant_id: DEMO_TENANT.id,
-  title: "Predicación: muestra de transmisión en vivo",
+  title: "Predicación dominical",
   type: "predicacion",
   course_id: null,
-  host_name: "Pastorado",
+  host_name: "Hermano Pablo",
   starts_at: new Date().toISOString(),
   duration_min: 60,
   video_url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
