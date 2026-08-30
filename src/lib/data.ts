@@ -118,29 +118,14 @@ export async function getLessonPage(
 }
 
 export async function getRecordings(): Promise<Session[]> {
-  if (isDemoMode()) return DEMO_RECORDINGS;
+  const { hasDatabase } = await import("@/lib/db");
+  if (!hasDatabase()) return DEMO_RECORDINGS;
 
   try {
-    const { createClient } = await import("@/lib/supabase/server");
-    const supabase = await createClient();
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("id")
-      .eq("slug", "aguas-vivas")
-      .maybeSingle();
-    if (!tenant) return [];
-
-    const { data } = await supabase
-      .from("sessions")
-      .select(
-        "id, tenant_id, title, type, course_id, host_name, starts_at, duration_min, video_url, notes, status",
-      )
-      .eq("tenant_id", tenant.id)
-      .eq("status", "finalizada")
-      .order("starts_at", { ascending: false })
-      .limit(30);
-    return (data as Session[]) ?? [];
+    const { listSessions } = await import("@/lib/db");
+    const all = await listSessions("finalizada");
+    return all.slice(0, 30);
   } catch {
-    return [];
+    return DEMO_RECORDINGS;
   }
 }

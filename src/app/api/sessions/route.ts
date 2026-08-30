@@ -1,39 +1,31 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
+import { cookies } from "next/headers";
+import { ADMIN_AUTH_COOKIE } from "@/lib/auth";
+import { createSession, updateSession, deleteSession } from "@/lib/db";
+import type { Session, SessionType, SessionStatus } from "@/lib/types";
 
 const TYPES = ["predicacion", "clase", "anuncio"] as const;
 const STATUSES = ["programada", "en_vivo", "finalizada"] as const;
 
-async function requireEditor() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return { error: "Debes iniciar sesión.", status: 401 as const, supabase };
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const role = profile?.role;
-  if (!role || !["super_admin", "pastor", "maestro"].includes(role)) {
-    return { error: "No tienes permisos para gestionar sesiones.", status: 403 as const, supabase };
+async function requireEditor(): Promise<{ error: string | null; status: number }> {
+  if (!process.env.DATABASE_URL) {
+    return { error: "La base de datos no está conectada.", status: 503 };
   }
-
-  return { error: null, status: 200 as const, supabase };
+  const store = await cookies();
+  if (store.get(ADMIN_AUTH_COOKIE)?.value !== "1") {
+    return { error: "Debes iniciar sesión.", status: 401 };
+  }
+  return { error: null, status: 200 };
 }
 
-async function getTenantId(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const { data } = await supabase
-    .from("tenants")
-    .select("id")
-    .eq("slug", DEFAULT_TENANT_SLUG)
-    .maybeSingle();
-  return data?.id ?? null;
+function sessionHelpers(body: Record<string, unknown>) {
+  const type = TYPES.includes(body.type as (typeof TYPES)[number])
+    ? (body.type as SessionType)
+    : "predicacion";
+  const status = STATUSES.includes(body.status as (typeof STATUSES)[number])
+    ? (body.status as SessionStatus)
+    : "programada";
+  return { type, status };
 }
 
 export async function POST(request: Request) {
@@ -51,48 +43,32 @@ export async function POST(request: Request) {
 
   const title = String(body.title ?? "").trim();
   if (!title) {
-    return NextResponse.json(
-      { ok: false, error: "El título es obligatorio." },
-      { status: 400 },
-    );
+    return NextResponse.json({ ok: false, error: "El título es obligatorio." }, { status: 400 });
   }
 
-  const tenantId = await getTenantId(ctx.supabase);
-  if (!tenantId) {
-    return NextResponse.json(
-      { ok: false, error: "La iglesia no existe. Ejecuta supabase/schema.sql." },
-      { status: 404 },
-    );
-  }
-
-  const type = TYPES.includes(body.type as (typeof TYPES)[number])
-    ? (body.type as string)
-    : "predicacion";
-
+  const { type } = sessionHelpers(body);
   const startsAtRaw = String(body.starts_at ?? "").trim();
+  const session: Session = {
+    id: crypto.randomUUID(),
+    tenant_id: "aguas-vivas",
+    title: title.slice(0, 160),
+    type,
+    course_id: null,
+    host_name: String(body.host_name ?? "").trim().slice(0, 120) || null,
+    starts_at: startsAtRaw ? new Date(startsAtRaw).toISOString() : null,
+    duration_min: Number(body.duration_min) > 0 ? Number(body.duration_min) : 60,
+    video_url: String(body.video_url ?? "").trim().slice(0, 500) || null,
+    notes: String(body.notes ?? "").trim().slice(0, 1000) || null,
+    status: "programada",
+  };
 
-  const { data, error } = await ctx.supabase
-    .from("sessions")
-    .insert({
-      tenant_id: tenantId,
-      title: title.slice(0, 160),
-      type,
-      host_name: String(body.host_name ?? "").trim().slice(0, 120) || null,
-      starts_at: startsAtRaw ? new Date(startsAtRaw).toISOString() : null,
-      duration_min: Number(body.duration_min) > 0 ? Number(body.duration_min) : 60,
-      video_url: String(body.video_url ?? "").trim().slice(0, 500) || null,
-      notes: String(body.notes ?? "").trim().slice(0, 1000) || null,
-      status: "programada",
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error("[sessions] create:", error.message);
+  try {
+    const created = await createSession(session);
+    return NextResponse.json({ ok: true, session: created });
+  } catch (err) {
+    console.error("[sessions] create:", err);
     return NextResponse.json({ ok: false, error: "No se pudo crear la sesión." }, { status: 503 });
   }
-
-  return NextResponse.json({ ok: true, session: data });
 }
 
 export async function PUT(request: Request) {
@@ -114,14 +90,14 @@ export async function PUT(request: Request) {
   }
 
   const updates: Record<string, unknown> = {};
-
   if (typeof body.title === "string" && body.title.trim()) updates.title = body.title.trim().slice(0, 160);
   if (typeof body.host_name === "string") updates.host_name = body.host_name.trim().slice(0, 120) || null;
   if (typeof body.video_url === "string") updates.video_url = body.video_url.trim().slice(0, 500) || null;
   if (typeof body.notes === "string") updates.notes = body.notes.trim().slice(0, 1000) || null;
 
-  if (TYPES.includes(body.type as (typeof TYPES)[number])) updates.type = body.type;
-  if (STATUSES.includes(body.status as (typeof STATUSES)[number])) updates.status = body.status;
+  const { type, status } = sessionHelpers(body);
+  if (TYPES.includes(body.type as (typeof TYPES)[number])) updates.type = type;
+  if (STATUSES.includes(body.status as (typeof STATUSES)[number])) updates.status = status;
 
   if (body.starts_at !== undefined) {
     const raw = String(body.starts_at ?? "").trim();
@@ -131,26 +107,16 @@ export async function PUT(request: Request) {
     updates.duration_min = Number(body.duration_min);
   }
 
-  const { data, error } = await ctx.supabase
-    .from("sessions")
-    .update(updates)
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("[sessions] update:", error.message);
+  try {
+    const updated = await updateSession(id, updates);
+    if (!updated) {
+      return NextResponse.json({ ok: false, error: "Sesión no encontrada." }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true, session: updated });
+  } catch (err) {
+    console.error("[sessions] update:", err);
     return NextResponse.json({ ok: false, error: "No se pudo actualizar." }, { status: 503 });
   }
-
-  if (!data) {
-    return NextResponse.json(
-      { ok: false, error: "Sin permisos para modificar esta sesión." },
-      { status: 403 },
-    );
-  }
-
-  return NextResponse.json({ ok: true, session: data });
 }
 
 export async function DELETE(request: Request) {
@@ -171,15 +137,14 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ ok: false, error: "Falta el identificador." }, { status: 400 });
   }
 
-  const { data: deleted, error } = await ctx.supabase.from("sessions").delete().eq("id", id).select("id");
-
-  if (error) {
+  try {
+    const ok = await deleteSession(id);
+    if (!ok) {
+      return NextResponse.json({ ok: false, error: "Sesión no encontrada." }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[sessions] delete:", err);
     return NextResponse.json({ ok: false, error: "No se pudo eliminar." }, { status: 503 });
   }
-
-  if (!deleted?.length) {
-    return NextResponse.json({ ok: false, error: "Sin permisos para eliminar esta sesión." }, { status: 403 });
-  }
-
-  return NextResponse.json({ ok: true });
 }

@@ -11,6 +11,7 @@ import {
 interface Props {
   initialSessions: Session[];
   canEdit: boolean;
+  isDemo?: boolean;
 }
 
 interface FormState {
@@ -57,7 +58,7 @@ function fmtDate(iso: string | null) {
   });
 }
 
-export default function SessionsManager({ initialSessions, canEdit }: Props) {
+export default function SessionsManager({ initialSessions, canEdit, isDemo = true }: Props) {
   const router = useRouter();
   const [sessions, setSessions] = useState<Session[]>(initialSessions);
   const [form, setForm] = useState<FormState>(EMPTY);
@@ -75,7 +76,7 @@ export default function SessionsManager({ initialSessions, canEdit }: Props) {
     setBusy(true);
     setMsg(null);
     try {
-      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      if (isDemo) {
         if (method !== "DELETE") {
           const current: Session | undefined =
             method === "PUT"

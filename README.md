@@ -164,8 +164,8 @@ enlace. Así no consumes almacenamiento ni ancho de banda propios:
 > transmisión. Cada grabación puede tener un **predicador/invitado distinto** (`host_name`); la
 > Biblioteca muestra el nombre junto a cada video.
 
-Los pasos 3-6 requieren haber **conectado la base de datos** y entrar con un usuario con rol
-editor (pastor / maestro / súper admin) en Supabase.
+En **modo producción** (con `DATABASE_URL` conectada), los pasos 3-6 los haces tú desde el
+panel entrando a `/acceso` con tu **clave maestra** (`ADMIN_KEY`).
 
 ### Cómo funciona la mayordomía
 
@@ -190,7 +190,47 @@ Ese usuario podrá editar la configuración de la iglesia y ver las decisiones d
 
 ## 🔒 Seguridad incluida
 
-- **RLS activo**: cualquiera puede *enviar* una decisión de fe; solo pastor/súper admin puede *leerlas*.
-- Contraseñas y sesiones gestionadas por Supabase Auth (nunca se tocan manualmente).
+- Acceso al panel mediante **clave maestra** (`ADMIN_KEY`), verificada en el servidor.
+- La clave y la conexión a la base de datos viven en variables de entorno; nunca en el código.
+- La cookie de sesión es `httpOnly` y `secure` en producción.
 - Formulario protegido contra spam básico (honeypot).
 - Las claves en `.env.local` nunca se suben al repositorio.
+
+---
+
+## 🔐 Conexión a la base de datos (Neon)
+
+El sitio funciona **sin base de datos (modo demo)**; en cuanto exista la variable
+`DATABASE_URL`, pasa a **modo producción** y guarda las sesiones / videos de verdad.
+
+### 1. Crear la base de datos en Neon (gratis, sin tarjeta)
+1. Entra a [neon.tech](https://neon.tech) → **Sign up** con tu correo y **confirma** el enlace.
+2. Crea un proyecto (nombre: `aguas-vivas`, región cercana).
+3. Pulsa **Connect** → copia la **connection string** (empieza en `postgresql://…@…neon.tech/…`).
+
+### 2. Crear la tabla `sessions`
+Abre **SQL Editor** en tu proyecto y pega el contenido de
+`supabase/neon-schema.sql`, o ejecútalo con tu cliente favorito. Crea la tabla
+`sessions` (título, tipo, responsable, fecha, duración, enlace de YouTube, notas y estado).
+
+### 3. Variables de entorno
+En tu proyecto de **Vercel** → **Settings → Environment Variables**, añade:
+
+```
+DATABASE_URL=postgresql://…@…neon.tech/neondb?sslmode=require…
+ADMIN_KEY=tu-clave-maestra
+```
+
+**Redeploy.** El sitio pasa de *modo demo* a *modo producción*.
+
+### 4. Entrar y gestionar videos
+1. Ve a **`/acceso`** e ingresa tu **clave maestra**.
+2. En el panel, abre **«Contenido & video»** (`/admin/en-vivo`).
+3. **«+ Programar sesión»**: título, predicador, fecha y **enlace de YouTube** → Guardar.
+4. Al comenzar presiona **Iniciar 🔴** (aparece EN VIVO en la home); al terminar **Finalizar**
+   (queda grabada 24/7 en `/biblioteca`).
+5. **«Cerrar sesión»** limpia tu acceso.
+
+> 🔐 **No compartas tu contraseña de correo en ningún chat.** Solo se necesita la
+> **connection string** de la base de datos y tu **clave maestra**; ambas van como
+> variables de entorno, nunca en el código.
