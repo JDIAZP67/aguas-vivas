@@ -1,9 +1,9 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { getRecordings, isDemoMode } from "@/lib/data";
+import { getRecordings } from "@/lib/data";
 import { toEmbedUrl } from "@/lib/youtube";
-import type { Session } from "@/lib/types";
+
 
 export const metadata = {
   title: "Biblioteca de grabaciones",
@@ -11,7 +11,8 @@ export const metadata = {
 
 export default async function BibliotecaPage() {
   const recordings = await getRecordings();
-  const demo = isDemoMode();
+  const { hasDatabase } = await import("@/lib/db");
+  const demo = !hasDatabase();
 
   return (
     <>
