@@ -2,8 +2,6 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import LiveSection from "@/components/LiveSection";
-import { createClient } from "@/lib/supabase/server";
-import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
 import { getTenant, isDemoMode } from "@/lib/data";
 import { DEMO_LIVE_SESSION, DEMO_TENANT, DEMO_UPCOMING } from "@/lib/demo-data";
 import type { Session } from "@/lib/types";
@@ -11,7 +9,6 @@ import type { Session } from "@/lib/types";
 export default async function Home() {
   let liveSession: Session | null = null;
   let upcoming: Session[] = [];
-  let monthTotals: { ingresos: number; egresos: number } | null = null;
   let tenantName: string | undefined;
 
   const demo = isDemoMode();
@@ -24,56 +21,15 @@ export default async function Home() {
   }
 
   try {
-    const supabase = await createClient();
-    const { data: tenant } = demo
-      ? { data: null }
-      : await supabase
-          .from("tenants")
-          .select("id, name")
-          .eq("slug", DEFAULT_TENANT_SLUG)
-          .maybeSingle();
-
-    if (tenant) {
-      const { data: lv } = await supabase
-        .from("sessions")
-        .select(
-          "id, tenant_id, title, type, course_id, host_name, starts_at, duration_min, video_url, notes, status",
-        )
-        .eq("tenant_id", tenant.id)
-        .eq("status", "en_vivo")
-        .limit(1);
-      liveSession = (lv?.[0] as Session) ?? null;
-
-      const { data: up } = await supabase
-        .from("sessions")
-        .select(
-          "id, tenant_id, title, type, course_id, host_name, starts_at, duration_min, video_url, notes, status",
-        )
-        .eq("tenant_id", tenant.id)
-        .eq("status", "programada")
-        .gte("starts_at", new Date().toISOString())
-        .order("starts_at", { ascending: true })
-        .limit(3);
-      upcoming = (up as Session[]) ?? [];
-
-      // Transparencia financiera del mes en curso (solo montos agregados)
-      const now = new Date();
-      const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-      const { data: txs } = await supabase
-        .from("transactions")
-        .select("kind, amount, status, approval_status")
-        .eq("tenant_id", tenant.id)
-        .gte("occurred_at", monthStart.toISOString());
-      if (txs) {
-        let ingresos = 0;
-        let egresos = 0;
-        for (const t of txs) {
-          const amt = Number(t.amount) || 0;
-          if (t.kind === "ingreso" && t.status === "confirmado") ingresos += amt;
-          if (t.kind === "egreso" && t.approval_status === "aprobado") egresos += amt;
-        }
-        monthTotals = { ingresos, egresos };
-      }
+    const { hasDatabase, listSessions } = await import("@/lib/db");
+    if (hasDatabase()) {
+      const all = await listSessions();
+      const now = Date.now();
+      liveSession = all.find((s) => s.status === "en_vivo") ?? null;
+      upcoming = all
+        .filter((s) => s.status === "programada")
+        .filter((s) => !s.starts_at || new Date(s.starts_at).getTime() >= now)
+        .slice(0, 3);
     }
   } catch {}
 
@@ -227,18 +183,6 @@ export default async function Home() {
                   por Tesorería y los egresos requieren aprobación del
                   Pastorado, con reportes mensuales exportables.
                 </p>
-                {monthTotals && (
-                  <p style={{ fontSize: "0.85rem", marginBottom: 0 }}>
-                    <b>Este mes:</b>{" "}
-                    <span className="amount-in">
-                      +S/ {monthTotals.ingresos.toFixed(2)}
-                    </span>{" "}
-                    ·{" "}
-                    <span className="amount-out">
-                      −S/ {monthTotals.egresos.toFixed(2)}
-                    </span>
-                  </p>
-                )}
               </div>
               <div className="stew-mini">
                 <h4>Da tu diezmo u ofrenda en línea</h4>
