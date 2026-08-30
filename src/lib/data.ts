@@ -25,63 +25,11 @@ export async function getTenant(): Promise<Tenant | null> {
 }
 
 export async function getCourses(): Promise<Course[]> {
-  if (isDemoMode()) return [DEMO_COURSE];
-
-  try {
-    const { createClient } = await import("@/lib/supabase/server");
-    const supabase = await createClient();
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("id")
-      .eq("slug", "aguas-vivas")
-      .maybeSingle();
-    if (!tenant) return [DEMO_COURSE];
-
-    const { data } = await supabase
-      .from("courses")
-      .select("id, slug, level, title, tagline, description, sort_order")
-      .eq("tenant_id", tenant.id)
-      .order("level", { ascending: true });
-    return (data as Course[])?.length ? (data as Course[]) : [DEMO_COURSE];
-  } catch {
-    return [DEMO_COURSE];
-  }
+  return [DEMO_COURSE];
 }
 
 export async function getLessonsForCourse(slug: string): Promise<Lesson[]> {
-  if (isDemoMode()) {
-    return slug === DEMO_COURSE.slug ? DEMO_LESSONS : [];
-  }
-
-  try {
-    const { createClient } = await import("@/lib/supabase/server");
-    const supabase = await createClient();
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("id")
-      .eq("slug", "aguas-vivas")
-      .maybeSingle();
-    if (!tenant) return [];
-
-    const { data: c } = await supabase
-      .from("courses")
-      .select("id")
-      .eq("tenant_id", tenant.id)
-      .eq("slug", slug)
-      .maybeSingle();
-    if (!c) return slug === DEMO_COURSE.slug ? DEMO_LESSONS : [];
-
-    const { data } = await supabase
-      .from("lessons")
-      .select(
-        "id, course_id, slug, title, module_label, verse_ref, body, duration_min, sort_order",
-      )
-      .eq("course_id", c.id)
-      .order("sort_order", { ascending: true });
-    return (data as Lesson[])?.length ? (data as Lesson[]) : [];
-  } catch {
-    return slug === DEMO_COURSE.slug ? DEMO_LESSONS : [];
-  }
+  return slug === DEMO_COURSE.slug ? DEMO_LESSONS : [];
 }
 
 export async function getCourse(slug: string): Promise<Course | null> {

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { getCourse, getLessonsForCourse, isDemoMode } from "@/lib/data";
+import { getCourse, getLessonsForCourse } from "@/lib/data";
 import type { Lesson } from "@/lib/lesson";
 
 export default async function CursoPage({
@@ -12,44 +12,11 @@ export default async function CursoPage({
 }) {
   const { curso } = await params;
 
-  let user = null;
-  let doneIds = new Set<string>();
-
-  if (!isDemoMode()) {
-    try {
-      const { createClient } = await import("@/lib/supabase/server");
-      const supabase = await createClient();
-      const {
-        data: { user: u },
-      } = await supabase.auth.getUser();
-      user = u ?? null;
-    } catch {}
-  }
-
   const course = await getCourse(curso);
   if (!course) notFound();
 
   const lessons: Lesson[] = await getLessonsForCourse(course.slug);
-
-  if (user && lessons.length && !isDemoMode()) {
-    try {
-      const { createClient } = await import("@/lib/supabase/server");
-      const supabase = await createClient();
-      const { data: p } = await supabase
-        .from("lesson_progress")
-        .select("lesson_id")
-        .eq("user_id", user.id)
-        .in(
-          "lesson_id",
-          lessons.map((x) => x.id),
-        );
-      doneIds = new Set((p ?? []).map((r) => r.lesson_id as string));
-    } catch {}
-  }
-
   const total = lessons.length;
-  const done = lessons.filter((l) => doneIds.has(l.id)).length;
-  const pct = total ? Math.round((done / total) * 100) : 0;
 
   let lastModule = "";
   let counter = 0;
@@ -72,17 +39,6 @@ export default async function CursoPage({
             <p>{course.description}</p>
           </div>
 
-          {user && total > 0 && (
-            <div className="progress-row" style={{ marginBottom: 30 }}>
-              <div className="progress-track">
-                <div className="progress-fill" style={{ width: `${pct}%` }} />
-              </div>
-              <span className="progress-pct">
-                {done}/{total} · {pct}%
-              </span>
-            </div>
-          )}
-
           {!total && (
             <div className="perm-note">
               <span>⏳</span>
@@ -93,24 +49,9 @@ export default async function CursoPage({
             </div>
           )}
 
-          {!user && total > 0 && (
-            <div className="perm-note" style={{ marginBottom: 20 }}>
-              <span>👀</span>
-              <div>
-                <b>Modo lectura libre</b>
-                Puedes estudiar todas las lecciones. Para guardar tu progreso,{" "}
-                <Link href="/acceso" style={{ fontWeight: 700 }}>
-                  crea tu cuenta o inicia sesión
-                </Link>
-                .
-              </div>
-            </div>
-          )}
-
           <div className="lesson-list">
             {lessons.map((l) => {
               counter += 1;
-              const isDone = doneIds.has(l.id);
               const showModule = l.module_label && l.module_label !== lastModule;
               lastModule = l.module_label ?? "";
 
@@ -132,9 +73,9 @@ export default async function CursoPage({
                   )}
                   <Link
                     href={`/estudios/${course.slug}/${l.slug}`}
-                    className={`lesson-item ${isDone ? "done" : ""}`}
+                    className="lesson-item"
                   >
-                    <span className="num">{isDone ? "✓" : counter}</span>
+                    <span className="num">{counter}</span>
                     <span className="info">
                       <b>{l.title}</b>
                       <span>
@@ -143,24 +84,13 @@ export default async function CursoPage({
                       </span>
                     </span>
                     <span className="state">
-                      {isDone ? (
-                        <span className="badge badge-discipulado">Completada</span>
-                      ) : (
-                        <span className="badge badge-nuevo">Estudiar →</span>
-                      )}
+                      <span className="badge badge-nuevo">Estudiar →</span>
                     </span>
                   </Link>
                 </div>
               );
             })}
           </div>
-
-          {user && total > 0 && done === total && (
-            <div className="form-status ok" style={{ marginTop: 26 }}>
-              🎉 ¡Nivel completado! Habla con tu pastor o maestro para tu
-              preparación final y el siguiente paso.
-            </div>
-          )}
         </div>
       </main>
 
