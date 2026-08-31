@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ADMIN_AUTH_COOKIE, ADMIN_KEY } from "@/lib/auth";
+import { DEMO_AUTH_COOKIE } from "@/lib/demo-auth";
 
 export async function POST(request: Request) {
   let body: { clave?: string };
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
   });
+  store.delete(DEMO_AUTH_COOKIE);
 
   return NextResponse.json({ ok: true });
 }
