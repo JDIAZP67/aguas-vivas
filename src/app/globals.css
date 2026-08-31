@@ -266,6 +266,8 @@ main.admin-main{ padding: 34px 44px 44px; max-width: 1040px; }
 @media (max-width: 880px){
   nav.main-nav{ display:none; }
   .mobile-nav{ display:block; }
+  .nav-cta{ display:none; }
+  .nav-wrap{ padding: 14px 18px; }
   .stew-grid{ grid-template-columns: 1fr; }
   .levels-grid{ grid-template-columns: 1fr; }
   .foot-grid{ grid-template-columns: 1fr 1fr; }
