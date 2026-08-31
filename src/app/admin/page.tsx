@@ -12,12 +12,14 @@ export const metadata = {
 };
 
 export default async function AdminPage() {
-  const demoProfile = await getDemoProfile();
+  const { hasAuthConfigured } = await import("@/lib/auth");
   const realProfile = await getAdminProfile();
-  const demo = isDemoMode() && demoProfile !== null;
+  const useReal = hasAuthConfigured();
+  const demoProfile = useReal ? null : await getDemoProfile();
+  const demo = !useReal && demoProfile !== null;
 
-  if (isDemoMode() && !demoProfile) redirect("/acceso");
-  if (!isDemoMode() && !realProfile) redirect("/acceso");
+  if (useReal && !realProfile) redirect("/acceso");
+  if (!useReal && !demoProfile) redirect("/acceso");
 
   let profile: Profile | null = null;
   let tenantName: string | undefined;
