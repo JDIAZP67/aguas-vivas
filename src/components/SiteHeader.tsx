@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getTenantName } from "@/lib/tenant";
+import MobileNav from "@/components/MobileNav";
 
 export default async function SiteHeader() {
   const name = await getTenantName();
@@ -35,6 +36,7 @@ export default async function SiteHeader() {
             Conoce a Jesús
           </Link>
         </div>
+        <MobileNav />
       </div>
     </header>
   );
