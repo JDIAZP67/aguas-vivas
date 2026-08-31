@@ -381,6 +381,22 @@ export default function SessionsManager({ initialSessions, canEdit, isDemo = tru
                             Finalizar
                           </button>
                         )}
+                        {s.status === "finalizada" && (
+                          <button
+                            disabled={!canEdit || busy}
+                            onClick={() => setStatus(s, "en_vivo")}
+                            className="btn"
+                            style={{
+                              padding: "6px 12px",
+                              fontSize: "0.75rem",
+                              background: "#c94a3c",
+                              color: "white",
+                              borderColor: "#c94a3c",
+                            }}
+                          >
+                            Re-transmitir 🔴
+                          </button>
+                        )}
                         <button
                           disabled={!canEdit}
                           onClick={() => editForm(s)}
