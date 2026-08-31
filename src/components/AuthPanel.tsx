@@ -2,10 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 export default function AuthPanel() {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,8 +23,7 @@ export default function AuthPanel() {
           return;
         }
         document.cookie = `${"av_demo_auth"}=1; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
-        router.push("/admin");
-        router.refresh();
+        window.location.assign("/admin");
         return;
       }
 
@@ -40,8 +37,7 @@ export default function AuthPanel() {
         setError(data.error ?? "Clave incorrecta.");
         return;
       }
-      router.push("/admin");
-      router.refresh();
+      window.location.assign("/admin");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error inesperado.");
     } finally {
