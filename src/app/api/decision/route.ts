@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
+import { hasDatabase, getTenantRow, createDecision } from "@/lib/db";
+import { DEMO_TENANT } from "@/lib/demo-data";
 
 export async function POST(request: Request) {
   let body: Record<string, unknown>;
@@ -33,20 +33,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const supabase = await createClient();
-
-  const { data: tenant, error: tenantErr } = await supabase
-    .from("tenants")
-    .select("id")
-    .eq("slug", DEFAULT_TENANT_SLUG)
-    .maybeSingle();
-
-  if (tenantErr || !tenant) {
-    console.error("[decision] tenant no encontrado:", tenantErr?.message);
-    return NextResponse.json(
-      { ok: false, error: "sin_conexion" },
-      { status: 503 },
-    );
+  if (!hasDatabase()) {
+    return NextResponse.json({ ok: true });
   }
 
   const clean = (v: unknown, max: number) => {
@@ -54,10 +42,9 @@ export async function POST(request: Request) {
     return s ? s.slice(0, max) : null;
   };
 
-  const { error: insertErr } = await supabase
-    .from("salvation_decisions")
-    .insert({
-      tenant_id: tenant.id,
+  try {
+    await createDecision({
+      tenant_id: DEMO_TENANT.id,
       full_name: fullName.slice(0, 120),
       email,
       phone,
@@ -65,9 +52,8 @@ export async function POST(request: Request) {
       city: clean(body.city, 80),
       message: clean(body.message, 2000),
     });
-
-  if (insertErr) {
-    console.error("[decision] error al insertar:", insertErr.message);
+  } catch (err) {
+    console.error("[decision] error al insertar:", err);
     return NextResponse.json(
       { ok: false, error: "sin_conexion" },
       { status: 503 },

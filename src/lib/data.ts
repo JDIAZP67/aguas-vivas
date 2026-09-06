@@ -4,32 +4,40 @@ import { DEMO_TENANT, DEMO_COURSE, DEMO_LESSONS, DEMO_RECORDINGS } from "./demo-
 import type { Session } from "./types";
 
 export function isDemoMode(): boolean {
-  return !process.env.NEXT_PUBLIC_SUPABASE_URL;
+  return !process.env.DATABASE_URL;
 }
 
 export async function getTenant(): Promise<Tenant | null> {
   if (isDemoMode()) return DEMO_TENANT;
 
   try {
-    const { createClient } = await import("@/lib/supabase/server");
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("tenants")
-      .select("*")
-      .eq("slug", "aguas-vivas")
-      .maybeSingle();
-    return (data as Tenant) ?? DEMO_TENANT;
+    const { getTenantRow } = await import("@/lib/db");
+    return (await getTenantRow("aguas-vivas")) ?? DEMO_TENANT;
   } catch {
     return DEMO_TENANT;
   }
 }
 
 export async function getCourses(): Promise<Course[]> {
-  return [DEMO_COURSE];
+  if (isDemoMode()) return [DEMO_COURSE];
+
+  try {
+    const { listCourses } = await import("@/lib/db");
+    return await listCourses();
+  } catch {
+    return [DEMO_COURSE];
+  }
 }
 
 export async function getLessonsForCourse(slug: string): Promise<Lesson[]> {
-  return slug === DEMO_COURSE.slug ? DEMO_LESSONS : [];
+  if (isDemoMode()) return slug === DEMO_COURSE.slug ? DEMO_LESSONS : [];
+
+  try {
+    const { listLessonsByCourseSlug } = await import("@/lib/db");
+    return await listLessonsByCourseSlug(slug);
+  } catch {
+    return [];
+  }
 }
 
 export async function getCourse(slug: string): Promise<Course | null> {

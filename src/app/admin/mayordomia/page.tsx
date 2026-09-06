@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import AdminShell from "@/components/AdminShell";
 import StewardshipManager from "@/components/StewardshipManager";
-import { createClient } from "@/lib/supabase/server";
+import { getDemoProfile } from "@/lib/demo-auth";
+import { getAdminProfile } from "@/lib/auth";
 import type { Profile } from "@/lib/types";
 import type { Transaction } from "@/lib/types";
 
@@ -32,36 +33,17 @@ export default async function MayordomiaPage({
 }: {
   searchParams: Promise<{ mes?: string }>;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { hasAuthConfigured } = await import("@/lib/auth");
+  const realProfile = await getAdminProfile();
+  const useReal = hasAuthConfigured();
+  const demoProfile = useReal ? null : await getDemoProfile();
+  const demo = !useReal && demoProfile !== null;
 
-  if (!user) redirect("/acceso");
+  if (useReal && !realProfile) redirect("/acceso");
+  if (!useReal && !demoProfile) redirect("/acceso");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const sessionUser = profile as Profile | null;
-
-  // Solo roles financieros; Mantenimiento y otros quedan fuera
-  if (!["super_admin", "pastor", "tesoreria"].includes(sessionUser?.role ?? "")) {
-    return (
-      <AdminShell active="/admin/mayordomia" profile={sessionUser}>
-        <div className="card" style={{ maxWidth: 560 }}>
-          <h3>Acceso restringido</h3>
-          <p>
-            El módulo de mayordomía está reservado a la Tesorería y el
-            Pastorado de la iglesia. Si crees que deberías tener acceso,
-            habla con tu pastor.
-          </p>
-        </div>
-      </AdminShell>
-    );
-  }
+  const sessionUser = (realProfile ?? demoProfile) as Profile | null;
+  let tenantName: string | undefined = useReal ? "Aguas Vivas" : "Aguas Vivas (Demo)";
 
   const params = await searchParams;
   const now = new Date();
@@ -70,27 +52,12 @@ export default async function MayordomiaPage({
   const { start, end } = monthBounds(mes);
 
   let transactions: Transaction[] = [];
-  let tenantName: string | undefined;
-  try {
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("id, name")
-      .eq("slug", "aguas-vivas")
-      .maybeSingle();
-
-    if (tenant) {
-      tenantName = tenant.name;
-      const { data } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("tenant_id", tenant.id)
-        .gte("occurred_at", start)
-        .lt("occurred_at", end)
-        .order("occurred_at", { ascending: false })
-        .limit(300);
-      transactions = (data as Transaction[]) ?? [];
-    }
-  } catch {}
+  if (useReal && realProfile) {
+    try {
+      const { listTransactions } = await import("@/lib/db");
+      transactions = await listTransactions("aguas-vivas", start, end);
+    } catch {}
+  }
 
   // Totales: ingresos confirmados vs egresos aprobados
   let ingresos = 0;
@@ -119,13 +86,23 @@ export default async function MayordomiaPage({
         </div>
       </div>
 
+      {demo && (
+        <div className="perm-note" style={{ marginBottom: 24 }}>
+          <span>🧪</span>
+          <div>
+            <b>Modo demostración</b>
+            Los movimientos aún no se guardan en base de datos.
+          </div>
+        </div>
+      )}
+
       <StewardshipManager
         monthLabel={monthLabel}
         prevHref={prevHref}
         nextHref={nextHref}
         transactions={transactions}
         totals={{ ingresos, egresos, balance: ingresos - egresos }}
-        canApprove={["super_admin", "pastor"].includes(sessionUser!.role)}
+        canApprove
       />
     </AdminShell>
   );

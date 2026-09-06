@@ -1,27 +1,16 @@
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import DonationForm from "@/components/DonationForm";
-import { createClient } from "@/lib/supabase/server";
-import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
+import { getTenant } from "@/lib/data";
 
 export const metadata = {
   title: "Diezmos y ofrendas",
 };
 
 export default async function DonarPage() {
-  let donationInfo: string | null = null;
-  let whatsapp: string | null = null;
-
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("tenants")
-      .select("donation_info, whatsapp")
-      .eq("slug", DEFAULT_TENANT_SLUG)
-      .maybeSingle();
-    donationInfo = data?.donation_info ?? null;
-    whatsapp = data?.whatsapp ?? null;
-  } catch {}
+  const tenant = await getTenant();
+  const donationInfo = tenant?.donation_info ?? null;
+  const whatsapp = tenant?.whatsapp ?? null;
 
   return (
     <>

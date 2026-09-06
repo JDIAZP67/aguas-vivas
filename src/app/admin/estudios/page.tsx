@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
+import { getDemoProfile } from "@/lib/demo-auth";
+import { getAdminProfile } from "@/lib/auth";
+import { DEMO_COURSE, DEMO_LESSONS } from "@/lib/demo-data";
 import type { Profile } from "@/lib/types";
 import type { Course, Lesson } from "@/lib/lesson";
 import AdminShell from "@/components/AdminShell";
@@ -11,76 +12,41 @@ export const metadata = {
 };
 
 export default async function AdminEstudiosPage() {
-  const supabase = await createClient();
+  const { hasAuthConfigured } = await import("@/lib/auth");
+  const realProfile = await getAdminProfile();
+  const useReal = hasAuthConfigured();
+  const demoProfile = useReal ? null : await getDemoProfile();
+  const demo = !useReal && demoProfile !== null;
 
-  let user = null;
-  try {
-    const {
-      data: { user: u },
-    } = await supabase.auth.getUser();
-    user = u;
-  } catch {
-    user = null;
-  }
-
-  if (!user) redirect("/acceso");
-
-  let profile: Profile | null = null;
-  try {
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, tenant_id, full_name, role")
-      .eq("id", user.id)
-      .maybeSingle();
-    profile = (data as Profile) ?? null;
-  } catch {
-    profile = null;
-  }
-
-  const canEdit = !!profile && ["super_admin", "pastor", "maestro"].includes(profile.role);
+  if (useReal && !realProfile) redirect("/acceso");
+  if (!useReal && !demoProfile) redirect("/acceso");
 
   let courses: Course[] = [];
   let lessonsByCourse: Record<string, Lesson[]> = {};
   let tenantName: string | undefined;
+  let profile: Profile | null = null;
 
-  if (canEdit) {
+  if (realProfile) {
+    profile = realProfile;
+    tenantName = "Aguas Vivas";
     try {
-      const { data: tenant } = await supabase
-        .from("tenants")
-        .select("id, name")
-        .eq("slug", DEFAULT_TENANT_SLUG)
-        .maybeSingle();
-
-      if (tenant) {
-        tenantName = tenant.name;
-        const { data: coursesData } = await supabase
-          .from("courses")
-          .select("id, slug, level, title, tagline, description, sort_order")
-          .eq("tenant_id", tenant.id)
-          .order("sort_order", { ascending: true });
-
-        courses = (coursesData as Course[]) ?? [];
-
-        if (courses.length) {
-          const { data: lessonsData } = await supabase
-            .from("lessons")
-            .select(
-              "id, course_id, slug, title, module_label, verse_ref, body, duration_min, sort_order",
-            )
-            .in(
-              "course_id",
-              courses.map((c) => c.id),
-            )
-            .order("sort_order", { ascending: true });
-
-          for (const row of lessonsData ?? []) {
-            const cid = row.course_id as string;
-            (lessonsByCourse[cid] ??= []).push(row as unknown as Lesson);
-          }
-        }
+      const { listCourses, listLessonsForCourseIds } = await import("@/lib/db");
+      courses = await listCourses();
+      const lessons = await listLessonsForCourseIds(courses.map((c) => c.id));
+      for (const l of lessons) {
+        (lessonsByCourse[l.course_id] ??= []).push(l);
       }
     } catch {}
   }
+
+  if (demo) {
+    profile = demoProfile;
+    tenantName = "Aguas Vivas (Demo)";
+    courses = [DEMO_COURSE];
+    lessonsByCourse = { [DEMO_COURSE.id]: DEMO_LESSONS };
+  }
+
+  const canEdit = Boolean(profile);
 
   return (
     <AdminShell active="/admin/estudios" profile={profile} tenantName={tenantName}>
@@ -100,13 +66,13 @@ export default async function AdminEstudiosPage() {
         bíblico para que tus estudiantes avancen.
       </p>
 
-      {!canEdit && (
-        <div className="perm-note">
-          <span>🔒</span>
+      {demo && (
+        <div className="perm-note" style={{ marginBottom: 24 }}>
+          <span>🧪</span>
           <div>
-            <b>Sin permisos de edición</b>
-            Solo pastores, maestros y super administradores pueden gestionar
-            los niveles de estudio.
+            <b>Modo demostración</b>
+            Estás viendo el panel con datos de ejemplo. Cuando conectes tu base
+            de datos (DATABASE_URL), aquí cargarás tus niveles reales.
           </div>
         </div>
       )}

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { hasDatabase, getTenantRow, createTransaction, getTransaction, updateTransaction, deleteTransaction } from "@/lib/db";
+import { ADMIN_AUTH_COOKIE } from "@/lib/auth";
+import { cookies } from "next/headers";
 import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
 
 const INCOME_CATS = ["diezmo", "ofrenda", "donacion", "otros_ingreso"];
@@ -17,30 +19,19 @@ function receiptCode() {
   return `AV-${Date.now().toString(36).toUpperCase()}`;
 }
 
-async function ctx() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  let role: string | null = null;
-  if (user) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("role, full_name")
-      .eq("id", user.id)
-      .maybeSingle();
-    role = data?.role ?? null;
+async function requireFinance(): Promise<{ error: string | null; status: number }> {
+  if (!hasDatabase()) {
+    return { error: "La base de datos no está conectada.", status: 503 };
   }
-
-  return { supabase, user, role };
+  const store = await cookies();
+  if (store.get(ADMIN_AUTH_COOKIE)?.value !== "1") {
+    return { error: "Debes iniciar sesión.", status: 401 };
+  }
+  return { error: null, status: 200 };
 }
 
-function isFinance(role: string | null) {
-  return ["super_admin", "pastor", "tesoreria"].includes(role ?? "");
-}
-function canApprove(role: string | null) {
-  return ["super_admin", "pastor"].includes(role ?? "");
+function canApprove() {
+  return true;
 }
 
 export async function POST(request: Request) {
@@ -69,47 +60,37 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = await ctx().then((c) => c.supabase);
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("id")
-      .eq("slug", DEFAULT_TENANT_SLUG)
-      .maybeSingle();
-
-    if (!tenant) {
-      return NextResponse.json({ ok: false, error: "servicio" }, { status: 503 });
+    if (!hasDatabase()) {
+      return NextResponse.json({ ok: true });
     }
 
     const method = METHODS.includes(body.method as never) ? String(body.method) : "transferencia";
 
-    const { error } = await supabase.from("transactions").insert({
-      tenant_id: tenant.id,
-      kind: "ingreso",
-      category: ["diezmo", "ofrenda", "donacion"].includes(String(body.category)) ? String(body.category) : "ofrenda",
-      amount: Math.round(amount * 100) / 100,
-      currency: "PEN",
-      description: String(body.description ?? "").trim().slice(0, 500) || null,
-      donor_name: donorName.slice(0, 120),
-      donor_email: String(body.donor_email ?? "").trim().slice(0, 160) || null,
-      donor_phone: String(body.donor_phone ?? "").trim().slice(0, 40) || null,
-      method,
-      status: "pendiente",
-    });
-
-    if (error) {
-      console.error("[tx] donación pública:", error.message);
+    try {
+      await createTransaction({
+        tenant_id: DEFAULT_TENANT_SLUG,
+        kind: "ingreso",
+        category: ["diezmo", "ofrenda", "donacion"].includes(String(body.category)) ? String(body.category) : "ofrenda",
+        amount: Math.round(amount * 100) / 100,
+        currency: "PEN",
+        description: String(body.description ?? "").trim().slice(0, 500) || null,
+        donor_name: donorName.slice(0, 120),
+        donor_email: String(body.donor_email ?? "").trim().slice(0, 160) || null,
+        donor_phone: String(body.donor_phone ?? "").trim().slice(0, 40) || null,
+        method,
+        status: "pendiente",
+      });
+    } catch (err) {
+      console.error("[tx] donación pública:", err);
       return NextResponse.json({ ok: false, error: "servicio" }, { status: 503 });
     }
     return NextResponse.json({ ok: true });
   }
 
   // ---- Registro manual (Tesorería / Pastor)
-  const { supabase, role } = await ctx();
-  if (!isFinance(role)) {
-    return NextResponse.json(
-      { ok: false, error: "No tienes acceso al módulo de mayordomía." },
-      { status: 403 },
-    );
+  const auth = await requireFinance();
+  if (auth.error) {
+    return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
   }
 
   const kind = body.kind === "egreso" ? "egreso" : "ingreso";
@@ -118,18 +99,8 @@ export async function POST(request: Request) {
       ? (INCOME_CATS.includes(String(body.category)) ? String(body.category) : "ofrenda")
       : (EXPENSE_CATS.includes(String(body.category)) ? String(body.category) : "otros_egreso");
 
-  const { data: tenant } = await supabase
-    .from("tenants")
-    .select("id")
-    .eq("slug", DEFAULT_TENANT_SLUG)
-    .maybeSingle();
-
-  if (!tenant) {
-    return NextResponse.json({ ok: false, error: "Falta configurar Supabase." }, { status: 404 });
-  }
-
   const insert: Record<string, unknown> = {
-    tenant_id: tenant.id,
+    tenant_id: DEFAULT_TENANT_SLUG,
     kind,
     category,
     amount: Math.round(amount * 100) / 100,
@@ -155,27 +126,19 @@ export async function POST(request: Request) {
     });
   }
 
-  const { data, error } = await supabase
-    .from("transactions")
-    .insert(insert)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("[tx] registro manual:", error.message);
+  try {
+    const transaction = await createTransaction(insert);
+    return NextResponse.json({ ok: true, transaction });
+  } catch (err) {
+    console.error("[tx] registro manual:", err);
     return NextResponse.json({ ok: false, error: "No se pudo registrar." }, { status: 503 });
   }
-
-  return NextResponse.json({ ok: true, transaction: data });
 }
 
 export async function PUT(request: Request) {
-  const { supabase, role } = await ctx();
-  if (!isFinance(role)) {
-    return NextResponse.json(
-      { ok: false, error: "No tienes acceso al módulo de mayordomía." },
-      { status: 403 },
-    );
+  const auth = await requireFinance();
+  if (auth.error) {
+    return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
   }
 
   let body: Record<string, unknown>;
@@ -190,11 +153,13 @@ export async function PUT(request: Request) {
     return NextResponse.json({ ok: false, error: "Falta el identificador." }, { status: 400 });
   }
 
-  const { data: tx } = await supabase
-    .from("transactions")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
+  let tx;
+  try {
+    tx = await getTransaction(id);
+  } catch (err) {
+    console.error("[tx] get:", err);
+    return NextResponse.json({ ok: false, error: "servicio" }, { status: 503 });
+  }
 
   if (!tx) {
     return NextResponse.json({ ok: false, error: "Transacción no encontrada." }, { status: 404 });
@@ -207,23 +172,22 @@ export async function PUT(request: Request) {
     if (tx.kind !== "ingreso" || tx.status !== "pendiente") {
       return NextResponse.json({ ok: false, error: "Solo ingresos pendientes se confirman." }, { status: 400 });
     }
-    const { data, error } = await supabase
-      .from("transactions")
-      .update({ status: "confirmado", receipt_code: receiptCode(), occurred_at: new Date().toISOString() })
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("[tx] confirmar:", error.message);
+    try {
+      const updated = await updateTransaction(id, {
+        status: "confirmado",
+        receipt_code: receiptCode(),
+        occurred_at: new Date().toISOString(),
+      });
+      return NextResponse.json({ ok: true, transaction: updated });
+    } catch (err) {
+      console.error("[tx] confirmar:", err);
       return NextResponse.json({ ok: false, error: "No se pudo confirmar." }, { status: 503 });
     }
-    return NextResponse.json({ ok: true, transaction: data });
   }
 
-  // Aprobar o rechazar egreso — SOLO Pastor / Súper Admin (separación de roles)
+  // Aprobar o rechazar egreso — Pastor / Súper Admin (clave maestra)
   if (action === "aprobar" || action === "rechazar") {
-    if (!canApprove(role)) {
+    if (!canApprove()) {
       return NextResponse.json(
         { ok: false, error: "Solo el Pastor puede aprobar o rechazar egresos." },
         { status: 403 },
@@ -234,23 +198,18 @@ export async function PUT(request: Request) {
     }
 
     const approved = action === "aprobar";
-    const { data, error } = await supabase
-      .from("transactions")
-      .update({
+    try {
+      const updated = await updateTransaction(id, {
         approval_status: approved ? "aprobado" : "rechazado",
         status: approved ? "aprobado" : "rechazado",
-        approved_by_name: role === "pastor" ? "Pastorado" : "Súper Admin",
+        approved_by_name: "Pastorado",
         approved_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("[tx] aprobar:", error.message);
+      });
+      return NextResponse.json({ ok: true, transaction: updated });
+    } catch (err) {
+      console.error("[tx] aprobar:", err);
       return NextResponse.json({ ok: false, error: "No se pudo procesar." }, { status: 503 });
     }
-    return NextResponse.json({ ok: true, transaction: data });
   }
 
   // Edición simple de campos mientras esté pendiente
@@ -270,26 +229,23 @@ export async function PUT(request: Request) {
     updates.description = body.description.trim().slice(0, 500) || null;
   }
 
-  const { data, error } = await supabase
-    .from("transactions")
-    .update(updates)
-    .eq("id", id)
-    .select()
-    .single();
+  if (!Object.keys(updates).length) {
+    return NextResponse.json({ ok: false, error: "Nada que actualizar." }, { status: 400 });
+  }
 
-  if (error) {
+  try {
+    const updated = await updateTransaction(id, updates);
+    return NextResponse.json({ ok: true, transaction: updated });
+  } catch (err) {
+    console.error("[tx] update:", err);
     return NextResponse.json({ ok: false, error: "No se pudo actualizar." }, { status: 503 });
   }
-  return NextResponse.json({ ok: true, transaction: data });
 }
 
 export async function DELETE(request: Request) {
-  const { supabase, role } = await ctx();
-  if (!canApprove(role)) {
-    return NextResponse.json(
-      { ok: false, error: "Solo el Pastor puede eliminar registros." },
-      { status: 403 },
-    );
+  const auth = await requireFinance();
+  if (auth.error) {
+    return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
   }
 
   let body: { id?: string };
@@ -304,9 +260,14 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ ok: false, error: "Falta el identificador." }, { status: 400 });
   }
 
-  const { error } = await supabase.from("transactions").delete().eq("id", id);
-  if (error) {
+  try {
+    const ok = await deleteTransaction(id);
+    if (!ok) {
+      return NextResponse.json({ ok: false, error: "Transacción no encontrada." }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[tx] delete:", err);
     return NextResponse.json({ ok: false, error: "No se pudo eliminar." }, { status: 503 });
   }
-  return NextResponse.json({ ok: true });
 }

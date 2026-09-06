@@ -72,8 +72,7 @@ export default function AdminShell({
             <span>⚠️</span>
             <div>
               <b>Tu rol es "{ROLE_LABELS[profile.role]}"</b>
-              No puedes guardar cambios en esta sección. Si eres el administrador,
-              ejecuta el script de configuración de roles en el SQL Editor de Supabase.
+              No puedes guardar cambios en esta sección.
             </div>
           </div>
         )}

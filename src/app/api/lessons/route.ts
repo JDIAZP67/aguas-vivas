@@ -1,31 +1,22 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { hasDatabase, createLesson, updateLesson, deleteLesson } from "@/lib/db";
+import { ADMIN_AUTH_COOKIE } from "@/lib/auth";
+import { cookies } from "next/headers";
 import { toSlug } from "@/lib/slug";
 
-async function requireEditor() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return { error: "Debes iniciar sesión.", status: 401 as const, supabase };
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const role = profile?.role;
-  if (!role || !["super_admin", "pastor", "maestro"].includes(role)) {
-    return { error: "No tienes permisos para gestionar lecciones.", status: 403 as const, supabase };
+async function requireAdmin() {
+  if (!hasDatabase()) {
+    return { error: "La base de datos no está conectada.", status: 503 as const };
   }
-
-  return { error: null, status: 200 as const, supabase };
+  const store = await cookies();
+  if (store.get(ADMIN_AUTH_COOKIE)?.value !== "1") {
+    return { error: "Debes iniciar sesión.", status: 401 as const };
+  }
+  return { error: null, status: 200 as const };
 }
 
 export async function POST(request: Request) {
-  const ctx = await requireEditor();
+  const ctx = await requireAdmin();
   if (ctx.error) {
     return NextResponse.json({ ok: false, error: ctx.error }, { status: ctx.status });
   }
@@ -57,11 +48,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "El slug no puede estar vacío." }, { status: 400 });
   }
 
-  const sort_order = Number(body.sort_order) > 0 ? Number(body.sort_order) : 1;
+  const sortOrder = Number(body.sort_order) > 0 ? Number(body.sort_order) : 1;
 
-  const { data, error } = await ctx.supabase
-    .from("lessons")
-    .insert({
+  try {
+    const lesson = await createLesson({
       course_id: courseId,
       slug,
       title: title.slice(0, 200),
@@ -69,21 +59,17 @@ export async function POST(request: Request) {
       verse_ref: String(body.verse_ref ?? "").trim().slice(0, 100) || null,
       body: bodyText,
       duration_min: Number(body.duration_min) > 0 ? Number(body.duration_min) : 15,
-      sort_order,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error("[lessons] create:", error.message);
+      sort_order: sortOrder,
+    });
+    return NextResponse.json({ ok: true, lesson });
+  } catch (err) {
+    console.error("[lessons] create:", err);
     return NextResponse.json({ ok: false, error: "No se pudo crear la lección." }, { status: 503 });
   }
-
-  return NextResponse.json({ ok: true, lesson: data });
 }
 
 export async function PUT(request: Request) {
-  const ctx = await requireEditor();
+  const ctx = await requireAdmin();
   if (ctx.error) {
     return NextResponse.json({ ok: false, error: ctx.error }, { status: ctx.status });
   }
@@ -114,27 +100,20 @@ export async function PUT(request: Request) {
     return NextResponse.json({ ok: false, error: "Nada que actualizar." }, { status: 400 });
   }
 
-  const { data, error } = await ctx.supabase
-    .from("lessons")
-    .update(updates)
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("[lessons] update:", error.message);
+  try {
+    const lesson = await updateLesson(id, updates);
+    if (!lesson) {
+      return NextResponse.json({ ok: false, error: "Lección no encontrada." }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true, lesson });
+  } catch (err) {
+    console.error("[lessons] update:", err);
     return NextResponse.json({ ok: false, error: "No se pudo actualizar la lección." }, { status: 503 });
   }
-
-  if (!data) {
-    return NextResponse.json({ ok: false, error: "Sin permisos para modificar esta lección." }, { status: 403 });
-  }
-
-  return NextResponse.json({ ok: true, lesson: data });
 }
 
 export async function DELETE(request: Request) {
-  const ctx = await requireEditor();
+  const ctx = await requireAdmin();
   if (ctx.error) {
     return NextResponse.json({ ok: false, error: ctx.error }, { status: ctx.status });
   }
@@ -151,16 +130,14 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ ok: false, error: "Falta el identificador." }, { status: 400 });
   }
 
-  const { data: deleted, error } = await ctx.supabase.from("lessons").delete().eq("id", id).select("id");
-
-  if (error) {
-    console.error("[lessons] delete:", error.message);
+  try {
+    const ok = await deleteLesson(id);
+    if (!ok) {
+      return NextResponse.json({ ok: false, error: "Lección no encontrada." }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[lessons] delete:", err);
     return NextResponse.json({ ok: false, error: "No se pudo eliminar la lección." }, { status: 503 });
   }
-
-  if (!deleted?.length) {
-    return NextResponse.json({ ok: false, error: "Sin permisos para eliminar esta lección." }, { status: 403 });
-  }
-
-  return NextResponse.json({ ok: true });
 }

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { hasDatabase, updateTenant, getTenantRow } from "@/lib/db";
+import { ADMIN_AUTH_COOKIE } from "@/lib/auth";
 import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
+import { cookies } from "next/headers";
 
 const ALLOWED_FIELDS = [
   "name",
@@ -20,30 +22,18 @@ const ALLOWED_FIELDS = [
 ] as const;
 
 export async function PUT(request: Request) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!hasDatabase()) {
     return NextResponse.json(
-      { ok: false, error: "Debes iniciar sesión." },
-      { status: 401 },
+      { ok: false, error: "La base de datos no está conectada." },
+      { status: 503 },
     );
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, tenant_id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const role = profile?.role;
-  if (!profile || (role !== "pastor" && role !== "super_admin")) {
+  const store = await cookies();
+  if (store.get(ADMIN_AUTH_COOKIE)?.value !== "1") {
     return NextResponse.json(
-      { ok: false, error: "No tienes permisos para editar la configuración de la iglesia." },
-      { status: 403 },
+      { ok: false, error: "Debes iniciar sesión." },
+      { status: 401 },
     );
   }
 
@@ -76,37 +66,27 @@ export async function PUT(request: Request) {
     updates.brand_color = "#0a3b5c";
   }
 
-  const { data: tenant } = await supabase
-    .from("tenants")
-    .select("id")
-    .eq("slug", DEFAULT_TENANT_SLUG)
-    .maybeSingle();
+  try {
+    const tenant = await getTenantRow(DEFAULT_TENANT_SLUG);
+    if (!tenant) {
+      return NextResponse.json(
+        { ok: false, error: "La iglesia no existe. Ejecuta neon/schema.sql." },
+        { status: 404 },
+      );
+    }
 
-  if (!tenant) {
+    const ok = await updateTenant(DEFAULT_TENANT_SLUG, updates);
+    if (!ok) {
+      return NextResponse.json(
+        { ok: false, error: "No se pudieron guardar los cambios." },
+        { status: 503 },
+      );
+    }
+  } catch (err) {
+    console.error("[tenant] error al actualizar:", err);
     return NextResponse.json(
-      { ok: false, error: "La iglesia no existe en la base de datos. Ejecuta supabase/schema.sql." },
-      { status: 404 },
-    );
-  }
-
-  const { data: updated, error: updateErr } = await supabase
-    .from("tenants")
-    .update(updates)
-    .eq("id", tenant.id)
-    .select("id");
-
-  if (updateErr) {
-    console.error("[tenant] error al actualizar:", updateErr.message);
-    return NextResponse.json(
-      { ok: false, error: "No se pudieron guardar los cambios en la base de datos." },
+      { ok: false, error: "No se pudieron guardar los cambios." },
       { status: 503 },
-    );
-  }
-
-  if (!updated?.length) {
-    return NextResponse.json(
-      { ok: false, error: "Sin permisos para modificar esta configuración. Verifica tu rol en el panel de Supabase (Authentication → Users)." },
-      { status: 403 },
     );
   }
 

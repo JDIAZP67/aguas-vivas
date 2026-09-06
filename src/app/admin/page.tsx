@@ -53,9 +53,9 @@ export default async function AdminPage() {
       </div>
 
       <p className="subhead" style={{ marginBottom: 20 }}>
-        El panel completo (configuración, decisiones de fe y finanzas) está
-        pendiente de migrar a la nueva base de datos. Puedes gestionar el
-        contenido audiovisual en el módulo «Contenido &amp; video».
+        Gestiona el contenido audiovisual en el módulo «Contenido &amp;
+        video» y los niveles de estudio en «Niveles de estudio». La
+        mayordomía está en «Diezmos, ofrendas y gastos».
       </p>
 
       <Link

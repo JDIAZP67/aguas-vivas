@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { hasDatabase, setLessonProgress, unsetLessonProgress } from "@/lib/db";
+import { ADMIN_AUTH_COOKIE } from "@/lib/auth";
+import { cookies } from "next/headers";
 
 export async function POST(request: Request) {
   return handle(request, true);
@@ -10,13 +12,15 @@ export async function DELETE(request: Request) {
 }
 
 async function handle(request: Request, complete: boolean) {
-  const supabase = await createClient();
+  if (!hasDatabase()) {
+    return NextResponse.json(
+      { ok: false, error: "La base de datos no está conectada." },
+      { status: 503 },
+    );
+  }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const store = await cookies();
+  if (store.get(ADMIN_AUTH_COOKIE)?.value !== "1") {
     return NextResponse.json(
       { ok: false, error: "Debes iniciar sesión." },
       { status: 401 },
@@ -41,27 +45,15 @@ async function handle(request: Request, complete: boolean) {
     );
   }
 
-  if (complete) {
-    const { error } = await supabase
-      .from("lesson_progress")
-      .upsert(
-        { user_id: user.id, lesson_id: lessonId },
-        { onConflict: "user_id,lesson_id" },
-      );
-    if (error) {
-      console.error("[progress] upsert:", error.message);
-      return NextResponse.json({ ok: false }, { status: 503 });
+  try {
+    if (complete) {
+      await setLessonProgress(lessonId);
+    } else {
+      await unsetLessonProgress(lessonId);
     }
-  } else {
-    const { error } = await supabase
-      .from("lesson_progress")
-      .delete()
-      .eq("user_id", user.id)
-      .eq("lesson_id", lessonId);
-    if (error) {
-      console.error("[progress] delete:", error.message);
-      return NextResponse.json({ ok: false }, { status: 503 });
-    }
+  } catch (err) {
+    console.error("[progress]", err);
+    return NextResponse.json({ ok: false }, { status: 503 });
   }
 
   return NextResponse.json({ ok: true });
