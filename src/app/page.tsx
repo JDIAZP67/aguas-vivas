@@ -104,6 +104,40 @@ export default async function Home({
               </p>
             </div>
             <LiveSection liveSession={liveSession} upcoming={upcoming} />
+
+            {upcoming.length > 0 && (
+              <div
+                style={{
+                  marginTop: 18,
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 10,
+                  justifyContent: "center",
+                }}
+              >
+                {upcoming.map((s) => (
+                  <span
+                    key={s.id}
+                    className="method-chip"
+                    style={{ textTransform: "lowercase" }}
+                  >
+                    {s.type === "clase"
+                      ? "📖 Clase"
+                      : s.type === "anuncio"
+                        ? "📣 Anuncios"
+                        : "🕊️ Predicación"}
+                    {s.starts_at
+                      ? ` · ${new Date(s.starts_at).toLocaleDateString("es-PE", {
+                          day: "numeric",
+                          month: "long",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}`
+                      : " · próximamente"}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 

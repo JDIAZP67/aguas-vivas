@@ -14,15 +14,22 @@ export const metadata = {
 export default async function BibliotecaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ iglesia?: string | string[] }>;
+  searchParams: Promise<{ iglesia?: string | string[]; tipo?: string | string[] }>;
 }) {
+  const sp = await searchParams;
   const slug = await resolveTenantSlugForRequest(
     await headers(),
-    searchParamSlug((await searchParams)?.iglesia),
+    searchParamSlug(sp?.iglesia),
   );
+  const tipo = Array.isArray(sp?.tipo) ? sp.tipo[0] : sp?.tipo?.trim() || "";
   const recordings = await getRecordings(slug);
   const { hasDatabase } = await import("@/lib/db");
   const demo = !hasDatabase();
+
+  const filtered =
+    tipo && ["predicacion", "clase", "anuncio"].includes(tipo)
+      ? recordings.filter((s) => s.type === tipo)
+      : recordings;
 
   return (
     <>
@@ -51,16 +58,47 @@ export default async function BibliotecaPage({
             </div>
           )}
 
-          {!recordings.length && (
+          {!filtered.length && (
             <div className="perm-note">
               <span>📼</span>
               <div>
-                <b>Aún no hay grabaciones</b>
-                Cuando el pastorado finalice una transmisión con video,
-                aparecerá aquí automáticamente.
+                {tipo
+                  ? "No hay grabaciones de ese tipo todavía."
+                  : "Aún no hay grabaciones"}
+                {!tipo && " — Cuando el pastorado finalice una transmisión con video, aparecerá aquí automáticamente."}
               </div>
             </div>
           )}
+
+          <div className="book-filters" style={{ marginBottom: 20 }}>
+            {[
+              ["", "Todas"],
+              ["predicacion", "Predicaciones"],
+              ["clase", "Clases"],
+              ["anuncio", "Anuncios"],
+            ].map(([val, label]) => {
+              const href = val
+                ? `/biblioteca?iglesia=${encodeURIComponent(slug)}&tipo=${val}`
+                : `/biblioteca?iglesia=${encodeURIComponent(slug)}`;
+              return (
+                <Link
+                  key={val}
+                  href={href}
+                  className={tipo === val ? "active" : ""}
+                  style={{
+                    padding: "7px 14px",
+                    borderRadius: 999,
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "0.72rem",
+                    background: tipo === val ? "var(--sky-mid)" : "rgba(10,59,92,0.06)",
+                    color: tipo === val ? "#fff" : "var(--sky-deep)",
+                  }}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
 
           <div
             style={{
@@ -69,7 +107,7 @@ export default async function BibliotecaPage({
               gap: 26,
             }}
           >
-            {recordings.map((s) => {
+            {filtered.map((s) => {
               const embed = toEmbedUrl(s.video_url);
               return (
                 <article key={s.id} className="level-card" style={{ padding: 0, overflow: "hidden" }}>
