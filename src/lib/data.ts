@@ -92,6 +92,36 @@ export async function getCourse(tenantSlug: string, slug: string): Promise<Cours
   }
 }
 
+/** Ruta de la próxima lección pendiente del miembro, o null si no hay pendientes. */
+export async function getNextLessonHref(
+  tenantSlug: string,
+  userRef: string,
+  memberLevel: number,
+): Promise<{ href: string; levelTitle: string } | null> {
+  const courses = await getCourses(tenantSlug);
+  const completed = new Set<string>();
+  try {
+    const db = await import("@/lib/db");
+    for (const id of await db.completedLessonIds(userRef)) completed.add(String(id));
+  } catch {
+    return null;
+  }
+
+  for (const c of courses) {
+    if (c.level > memberLevel) break;
+    const lessons = await getLessonsForCourse(tenantSlug, c.slug);
+    for (const l of lessons) {
+      if (!completed.has(String(l.id))) {
+        return {
+          href: `/estudios/${encodeURIComponent(c.slug)}/${encodeURIComponent(l.slug)}?iglesia=${encodeURIComponent(tenantSlug)}`,
+          levelTitle: c.title,
+        };
+      }
+    }
+  }
+  return null;
+}
+
 export interface LessonPageData {
   course: Course;
   lesson: Lesson;

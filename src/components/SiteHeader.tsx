@@ -47,6 +47,9 @@ export default async function SiteHeader({ slug: slugProp }: { slug?: string } =
         <div className="nav-cta">
           {member ? (
             <>
+              <Link className="pbtn pbtn-ghost" href="/mi-perfil">
+                Mi perfil
+              </Link>
               <Link className="pbtn pbtn-ghost" href="/mi-progreso">
                 Mi progreso
               </Link>
