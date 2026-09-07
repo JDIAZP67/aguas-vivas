@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import CertButtons from "@/components/CertButtons";
 import { getMemberSession } from "@/lib/member-auth";
 import { getMemberLevelsProgress } from "@/lib/data";
 import { getTenantNameBySlug } from "@/lib/tenant";
@@ -111,22 +112,7 @@ export default async function CertificadoPage({
         </div>
       </section>
 
-      <div
-        style={{
-          position: "fixed",
-          bottom: 18,
-          left: 0,
-          right: 0,
-          display: "flex",
-          gap: 12,
-          justifyContent: "center",
-        }}
-      >
-        <button className="btn btn-primary" onClick={() => window.print()}>
-          Imprimir / Guardar PDF
-        </button>
-        <a className="btn" href="/mi-perfil">← Volver a mi perfil</a>
-      </div>
+      <CertButtons />
 
       <style>{`@media print {
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
