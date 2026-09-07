@@ -55,6 +55,9 @@ aguas-vivas/
    `lesson_progress`, `sessions`, `transactions`) y registra la iglesia inicial
    con contenido de ejemplo.
 
+> **¿Ya tienes la base creada antes?** Aplica también los archivos `neon/migration-*.sql`
+> (membresía, decisiones, correo) en orden; son *adiciones* seguras de tablas/columnas.
+
 ### 3. Conectar credenciales
 
 Copia el archivo `.env.local.example` a `.env.local` y completa:
@@ -67,18 +70,33 @@ ADMIN_KEY=tu-clave-maestra-secreta
 ### 4. Levantar el sitio
 
 ```bash
-npm run dev        # desarrollo → http://localhost:3000
+npm run dev        # desarrollo → http://localhost:3200
 npm run build && npm run start   # producción local
 ```
 
 ### 5. Publicarlo en internet (gratis)
 
-1. Sube el repo a GitHub
-2. Entra a [vercel.com](https://vercel.com) → **Import project**
-3. En **Settings → Environment Variables**, agrega `DATABASE_URL` y `ADMIN_KEY`
-4. Deploy → tendrás dominio `xxx.vercel.app`. Luego puedes conectar tu propio dominio (ej. `aguasvivas.org`).
+1. Sube el repo a GitHub (`git push origin main` desde la raíz del proyecto).
+2. Entra a [vercel.com](https://vercel.com) → **Add New Project** → importa el repositorio.
+3. En **Settings → Environment Variables**, agrega:
+   - `DATABASE_URL` (de Neon) y `ADMIN_KEY` (clave maestra) — **obligatorias** para producción real.
+   - `PUBLIC_BASE_URL` (tu dominio, para los enlaces de los correos).
+   - Correos (opcional, Fase 6): `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`,
+     `SMTP_PASS`, `SMTP_FROM` y `NOTIFICATION_EMAIL`.
+4. **Deploy** → tendrás `xxx.vercel.app`. Luego conecta tu propio dominio en el panel de Vercel.
 
-> Sin variables de entorno, el deploy corre en **modo demo** y se puede revisar igualmente.
+> Sin `DATABASE_URL`, el deploy corre en **modo demo** y se puede revisar igualmente.
+
+### Multi-iglesia y dominios propios
+
+Cada iglesia tiene un `slug` (`aguas-vivas`, `iglesia-prueba`) y un dominio opcional
+(`tenants.primary_domain`). La resolución es:
+
+- Por dominio: `iglesia.com` muestra esa iglesia automáticamente (Vercel → tu dominio
+  con CNAME `cname.vercel-dns.com`).
+- Sin dominio: comparte el mismo dominio y añade `?iglesia=slug`. El link se conserva
+  en toda la navegación.
+- El selector de iglesia vive en `/admin/iglesias` (solo clave maestra).
 
 ---
 
@@ -109,13 +127,18 @@ npm run build && npm run start   # producción local
 |---|---|
 | Sitio público con identidad "Aguas Vivas" | ✅ Listo |
 | ⭐ **Plan de Salvación** (4 verdades con versículos RV1960 + oración de fe) | ✅ Listo |
-| Formulario de decisión → guardado en Neon | ✅ Listo |
-| 📖 **Nivel 1 Fundamentos: 12 lecciones** con gestión en el panel | ✅ `/estudios` · `/admin/estudios` |
-| 🔴 **Transmisiones en vivo** (YouTube) + biblioteca de grabaciones | ✅ `/admin/en-vivo` · `/biblioteca` |
-| 💛 **Mayordomía**: donaciones con comprobante, egresos aprobados por el pastor, reporte mensual CSV | ✅ `/donar` · `/admin/mayordomia` |
-| Configuración de iglesia editable | ✅ En `/admin` |
+| Formulario de decisión → guardado en Neon + aviso por correo | ✅ Listo |
+| 🧭 **Panel de Decisiones** con seguimiento (nuevo → integrado) | ✅ `/admin/decisiones` |
+| 🔐 **Membresía multi-iglesia** (registro, roles, sesiones) | ✅ `/acceso`, `/admin/miembros` |
+| 📖 **Estudios por niveles** con progreso y desbloqueo automático | ✅ `/estudios` · `/mi-progreso` |
+| 👤 **Perfil del miembro** + continuar donde quedaste + cambiar clave | ✅ `/mi-perfil` |
+| 🏅 **Certificados** imprimibles por nivel completado | ✅ `/certificado` |
+| 🔴 **Transmisiones en vivo** (YouTube) + próximas sesiones + biblioteca con filtros | ✅ `/admin/en-vivo` · `/biblioteca` |
+| 💛 **Mayordomía**: donaciones, egresos aprobados, reportes por categoría, comparativas y CSV | ✅ `/donar` · `/admin/mayordomia` |
+| 📧 **Correos**: bienvenida, decisiones, donaciones y recuperación de clave | ✅ Fase 6 |
+| Configuración de iglesia editable (incluye cuentas para diezmos) | ✅ En `/admin` |
 | Niveles 2 y 3 del discipulado | 🔜 Fase siguiente |
-| Multi-iglesia + inglés/portugués | 🔜 Fase futura |
+| Avisos por SMS / WhatsApp | 🔜 Fase futura |
 
 ### Cómo transmitir en vivo
 
