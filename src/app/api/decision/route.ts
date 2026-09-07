@@ -55,6 +55,14 @@ export async function POST(request: Request) {
       city: clean(body.city, 80),
       message: clean(body.message, 2000),
     });
+
+    const mail = await import("@/lib/mail");
+    void mail
+      .sendMail({
+        to: process.env.NOTIFICATION_EMAIL ?? "",
+        ...mail.mailNewDecision({ fullName, email, phone, message: clean(body.message, 500) }),
+      })
+      .catch(() => {});
   } catch (err) {
     console.error("[decision] error al insertar:", err);
     return NextResponse.json(

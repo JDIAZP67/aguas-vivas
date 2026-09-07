@@ -27,8 +27,8 @@ export async function sendMail(input: {
   subject: string;
   html: string;
 }): Promise<boolean> {
-  if (!hasSmtp()) {
-    console.log("[mail] SMTP no configurado; correo omitido:", input.to, "-", input.subject);
+  if (!hasSmtp() || !input.to) {
+    console.log("[mail] SMTP no configurado o sin destinatario; correo omitido:", input.to, "-", input.subject);
     return false;
   }
   try {

@@ -7,6 +7,7 @@ export const SECTION_ALLOW = {
   contenido: ["super_admin", "pastor", "maestro"] as AppRole[],
   configuracion: ["super_admin", "pastor"] as AppRole[],
   miembros: ["super_admin", "pastor"] as AppRole[],
+  decisiones: ["super_admin", "pastor"] as AppRole[],
 } as const;
 
 export type AdminSection = keyof typeof SECTION_ALLOW;

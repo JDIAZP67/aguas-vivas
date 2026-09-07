@@ -9,6 +9,7 @@ const ALL_NAV: NavItem[] = [
   { href: "/admin", label: "Panel general" },
   { href: "/admin/iglesias", label: "Iglesias" },
   { href: "/admin/miembros", label: "Miembros" },
+  { href: "/admin/decisiones", label: "Decisiones" },
   { href: "/admin/en-vivo", label: "Contenido & video" },
   { href: "/admin/mayordomia", label: "Mayordomía" },
   { href: "/admin/estudios", label: "Niveles de estudio" },
@@ -20,6 +21,7 @@ const NAV_BY_ROLE: Record<AppRole, string[]> = {
   pastor: [
     "/admin",
     "/admin/miembros",
+    "/admin/decisiones",
     "/admin/en-vivo",
     "/admin/mayordomia",
     "/admin/estudios",

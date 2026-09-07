@@ -292,6 +292,39 @@ export async function listDecisions(tenantId: string): Promise<SalvationDecision
   return (rows as Record<string, unknown>[]).map(toDecision);
 }
 
+export async function setDecisionStatus(
+  decisionId: string,
+  status: SalvationDecision["status"],
+  tenantId: string,
+): Promise<boolean> {
+  const sql = client();
+  const rows = await sql.query(
+    `update salvation_decisions
+     set status = $3, updated_at = now()
+     where id = $1 and tenant_id = $2
+     returning id`,
+    [decisionId, tenantId, status],
+  );
+  return rows.length > 0;
+}
+
+export async function countDecisionsByStatus(
+  tenantId: string,
+): Promise<Record<string, number>> {
+  const sql = client();
+  const rows = await sql.query(
+    `select status, count(*)::int as n
+     from salvation_decisions where tenant_id = $1
+     group by status`,
+    [tenantId],
+  );
+  const counts: Record<string, number> = { nuevo: 0, contactado: 0, discipulado: 0, integrado: 0 };
+  for (const r of rows as Record<string, unknown>[]) {
+    counts[String(r.status)] = Number(r.n);
+  }
+  return counts;
+}
+
 // ----------------------------------------------------------------------------
 // Cursos y lecciones
 // ----------------------------------------------------------------------------
