@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { getRecordings } from "@/lib/data";
+import { resolveTenantSlugForRequest, searchParamSlug } from "@/lib/tenant";
 import { toEmbedUrl } from "@/lib/youtube";
 
 
@@ -9,14 +11,22 @@ export const metadata = {
   title: "Biblioteca de grabaciones",
 };
 
-export default async function BibliotecaPage() {
-  const recordings = await getRecordings();
+export default async function BibliotecaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ iglesia?: string | string[] }>;
+}) {
+  const slug = await resolveTenantSlugForRequest(
+    await headers(),
+    searchParamSlug((await searchParams)?.iglesia),
+  );
+  const recordings = await getRecordings(slug);
   const { hasDatabase } = await import("@/lib/db");
   const demo = !hasDatabase();
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader slug={slug} />
 
       <main className="block">
         <div className="section-inner">
@@ -132,7 +142,7 @@ export default async function BibliotecaPage() {
         </div>
       </main>
 
-      <SiteFooter />
+      <SiteFooter slug={slug} />
     </>
   );
 }

@@ -70,6 +70,7 @@ export async function createSession(input: Session): Promise<Session> {
 
 export async function updateSession(
   id: string,
+  tenantId: string,
   input: Record<string, unknown>,
 ): Promise<Session | null> {
   const sql = client();
@@ -78,7 +79,10 @@ export async function updateSession(
   );
 
   if (entries.length === 0) {
-    const r = await sql.query("select * from sessions where id = $1", [id]);
+    const r = await sql.query(
+      "select * from sessions where id = $1 and tenant_id = $2",
+      [id, tenantId],
+    );
     return r.length ? toSession(r[0] as Record<string, unknown>) : null;
   }
 
@@ -88,32 +92,35 @@ export async function updateSession(
     vals.push(v);
     setCols.push(`${k} = $${vals.length}`);
   }
-  vals.push(id);
+  vals.push(tenantId, id);
 
   const rows = await sql.query(
-    `update sessions set ${setCols.join(", ")} where id = $${entries.length + 1} returning *`,
+    `update sessions set ${setCols.join(", ")} where id = $${entries.length + 2} and tenant_id = $${entries.length + 1} returning *`,
     vals,
   );
   return rows.length ? toSession(rows[0] as Record<string, unknown>) : null;
 }
 
-export async function deleteSession(id: string): Promise<boolean> {
+export async function deleteSession(id: string, tenantId: string): Promise<boolean> {
   const sql = client();
   const rows = await sql.query(
-    "delete from sessions where id = $1 returning id",
-    [id],
+    "delete from sessions where id = $1 and tenant_id = $2 returning id",
+    [id, tenantId],
   );
   return rows.length > 0;
 }
 
-export async function listSessions(status?: string): Promise<Session[]> {
+export async function listSessions(tenantId: string, status?: string): Promise<Session[]> {
   const sql = client();
   const rows = status
     ? await sql.query(
-        "select * from sessions where status = $1 order by starts_at desc",
-        [status],
+        "select * from sessions where tenant_id = $1 and status = $2 order by starts_at desc",
+        [tenantId, status],
       )
-    : await sql.query("select * from sessions order by starts_at desc");
+    : await sql.query(
+        "select * from sessions where tenant_id = $1 order by starts_at desc",
+        [tenantId],
+      );
   return (rows as unknown as Record<string, unknown>[]).map(toSession);
 }
 
@@ -126,6 +133,7 @@ function toTenant(row: Record<string, unknown>): Tenant {
     id: String(row.id),
     slug: String(row.slug),
     name: String(row.name),
+    primary_domain: row.primary_domain ? String(row.primary_domain) : null,
     country: row.country ? String(row.country) : null,
     city: row.city ? String(row.city) : null,
     address: row.address ? String(row.address) : null,
@@ -159,7 +167,7 @@ export async function getTenantName(slug: string): Promise<string | null> {
 
 export async function updateTenant(
   slug: string,
-  updates: Record<string, string>,
+  updates: Record<string, unknown>,
 ): Promise<boolean> {
   const sql = client();
   const entries = Object.entries(updates).filter(([, v]) => v !== undefined);
@@ -178,6 +186,62 @@ export async function updateTenant(
     vals,
   );
   return rows.length > 0;
+}
+
+export async function tenantExists(slug: string): Promise<boolean> {
+  const sql = client();
+  const rows = await sql.query("select id from tenants where slug = $1 limit 1", [slug]);
+  return rows.length > 0;
+}
+
+export async function getTenantByDomain(domain: string): Promise<string | null> {
+  const sql = client();
+  const rows = await sql.query(
+    "select slug from tenants where primary_domain = $1 and status = 'active' limit 1",
+    [domain],
+  );
+  return rows.length ? String(rows[0].slug) : null;
+}
+
+const TENANT_COLS = [
+  "slug",
+  "name",
+  "primary_domain",
+  "country",
+  "city",
+  "address",
+  "description",
+  "logo_url",
+  "brand_color",
+  "contact_email",
+  "contact_phone",
+  "whatsapp",
+  "facebook",
+  "instagram",
+  "youtube",
+  "service_schedule",
+  "donation_info",
+  "plan",
+  "status",
+];
+
+export async function listTenants(): Promise<Tenant[]> {
+  const sql = client();
+  const rows = await sql.query("select * from tenants order by created_at desc");
+  return (rows as Record<string, unknown>[]).map(toTenant);
+}
+
+export async function createTenant(input: Record<string, unknown>): Promise<Tenant> {
+  const sql = client();
+  const cols = TENANT_COLS;
+  const vals = cols.map((c) => (input[c] === undefined ? null : input[c]));
+  const placeholders = vals.map((_, i) => `$${i + 1}`);
+  const rows = await sql.query(
+    `insert into tenants (${cols.join(", ")})
+     values (${placeholders.join(", ")}) returning *`,
+    vals,
+  );
+  return toTenant(rows[0] as Record<string, unknown>);
 }
 
 // ----------------------------------------------------------------------------
@@ -217,10 +281,11 @@ export async function createDecision(input: Record<string, unknown>): Promise<vo
   );
 }
 
-export async function listDecisions(): Promise<SalvationDecision[]> {
+export async function listDecisions(tenantId: string): Promise<SalvationDecision[]> {
   const sql = client();
   const rows = await sql.query(
-    "select * from salvation_decisions order by created_at desc limit 300",
+    "select * from salvation_decisions where tenant_id = $1 order by created_at desc limit 300",
+    [tenantId],
   );
   return (rows as Record<string, unknown>[]).map(toDecision);
 }
@@ -275,6 +340,7 @@ export async function createCourse(input: Record<string, unknown>): Promise<Cour
 
 export async function updateCourse(
   id: string,
+  tenantId: string,
   updates: Record<string, unknown>,
 ): Promise<Course | null> {
   const sql = client();
@@ -289,35 +355,39 @@ export async function updateCourse(
     vals.push(v);
     setCols.push(`${k} = $${vals.length}`);
   }
-  vals.push(id);
+  vals.push(tenantId, id);
 
   const rows = await sql.query(
-    `update courses set ${setCols.join(", ")} where id = $${entries.length + 1} returning *`,
+    `update courses set ${setCols.join(", ")} where id = $${entries.length + 2} and tenant_id = $${entries.length + 1} returning *`,
     vals,
   );
   return rows.length ? toCourse(rows[0] as Record<string, unknown>) : null;
 }
 
-export async function deleteCourse(id: string): Promise<boolean> {
+export async function deleteCourse(id: string, tenantId: string): Promise<boolean> {
   const sql = client();
-  const rows = await sql.query("delete from courses where id = $1 returning id", [id]);
+  const rows = await sql.query(
+    "delete from courses where id = $1 and tenant_id = $2 returning id",
+    [id, tenantId],
+  );
   return rows.length > 0;
 }
 
-export async function listCourses(tenantId?: string): Promise<Course[]> {
+export async function listCourses(tenantId: string): Promise<Course[]> {
   const sql = client();
-  const rows = tenantId
-    ? await sql.query(
-        "select * from courses where tenant_id = $1 order by sort_order asc",
-        [tenantId],
-      )
-    : await sql.query("select * from courses order by sort_order asc");
+  const rows = await sql.query(
+    "select * from courses where tenant_id = $1 order by sort_order asc",
+    [tenantId],
+  );
   return (rows as Record<string, unknown>[]).map(toCourse);
 }
 
-export async function getCourseBySlug(slug: string): Promise<Course | null> {
+export async function getCourseBySlug(tenantId: string, slug: string): Promise<Course | null> {
   const sql = client();
-  const rows = await sql.query("select * from courses where slug = $1 limit 1", [slug]);
+  const rows = await sql.query(
+    "select * from courses where tenant_id = $1 and slug = $2 limit 1",
+    [tenantId, slug],
+  );
   return rows.length ? toCourse(rows[0] as Record<string, unknown>) : null;
 }
 
@@ -343,6 +413,7 @@ export async function createLesson(input: Record<string, unknown>): Promise<Less
 
 export async function updateLesson(
   id: string,
+  tenantId: string,
   updates: Record<string, unknown>,
 ): Promise<Lesson | null> {
   const sql = client();
@@ -357,18 +428,27 @@ export async function updateLesson(
     vals.push(v);
     setCols.push(`${k} = $${vals.length}`);
   }
-  vals.push(id);
+  vals.push(tenantId, id);
 
   const rows = await sql.query(
-    `update lessons set ${setCols.join(", ")} where id = $${entries.length + 1} returning *`,
+    `update lessons l set ${setCols.join(", ")}
+     where l.id = $${entries.length + 2}
+       and l.course_id in (select id from courses where tenant_id = $${entries.length + 1})
+     returning l.*`,
     vals,
   );
   return rows.length ? toLesson(rows[0] as Record<string, unknown>) : null;
 }
 
-export async function deleteLesson(id: string): Promise<boolean> {
+export async function deleteLesson(id: string, tenantId: string): Promise<boolean> {
   const sql = client();
-  const rows = await sql.query("delete from lessons where id = $1 returning id", [id]);
+  const rows = await sql.query(
+    `delete from lessons l
+     where l.id = $1
+       and l.course_id in (select id from courses where tenant_id = $2)
+     returning l.id`,
+    [id, tenantId],
+  );
   return rows.length > 0;
 }
 
@@ -384,16 +464,54 @@ export async function listLessonsForCourseIds(courseIds: string[]): Promise<Less
   return (rows as Record<string, unknown>[]).map(toLesson);
 }
 
-export async function listLessonsByCourseSlug(slug: string): Promise<Lesson[]> {
+export async function listLessonsByCourseSlug(tenantId: string, slug: string): Promise<Lesson[]> {
   const sql = client();
   const rows = await sql.query(
     `select l.* from lessons l
      join courses c on c.id = l.course_id
-     where c.slug = $1
+     where c.tenant_id = $1 and c.slug = $2
      order by l.sort_order asc`,
-    [slug],
+    [tenantId, slug],
   );
   return (rows as Record<string, unknown>[]).map(toLesson);
+}
+
+export async function copyCoursesToTenant(
+  sourceTenantSlug: string,
+  targetTenantSlug: string,
+): Promise<number> {
+  const sourceCourses = await listCourses(sourceTenantSlug);
+  const sourceIds = sourceCourses.map((c) => c.id);
+  const lessons = await listLessonsForCourseIds(sourceIds);
+
+  let copied = 0;
+  for (const course of sourceCourses) {
+    const courseLessons = lessons.filter((l) => l.course_id === course.id);
+    const created = await createCourse({
+      tenant_id: targetTenantSlug,
+      slug: course.slug,
+      level: course.level,
+      title: course.title,
+      tagline: course.tagline,
+      description: course.description,
+      sort_order: course.sort_order,
+    });
+    copied += 1;
+    for (const l of courseLessons) {
+      await createLesson({
+        course_id: created.id,
+        slug: l.slug,
+        title: l.title,
+        module_label: l.module_label,
+        verse_ref: l.verse_ref,
+        body: l.body,
+        duration_min: l.duration_min,
+        sort_order: l.sort_order,
+      });
+      copied += 1;
+    }
+  }
+  return copied;
 }
 
 // ----------------------------------------------------------------------------
@@ -481,24 +599,24 @@ export async function createTransaction(
   return toTransaction(rows[0] as Record<string, unknown>);
 }
 
-export async function getTransaction(id: string): Promise<Transaction | null> {
+export async function getTransaction(id: string, tenantId?: string): Promise<Transaction | null> {
   const sql = client();
-  const rows = await sql.query(
-    "select * from transactions where id = $1 limit 1",
-    [id],
-  );
+  const rows = tenantId
+    ? await sql.query("select * from transactions where id = $1 and tenant_id = $2 limit 1", [id, tenantId])
+    : await sql.query("select * from transactions where id = $1 limit 1", [id]);
   return rows.length ? toTransaction(rows[0] as Record<string, unknown>) : null;
 }
 
 export async function updateTransaction(
   id: string,
+  tenantId: string,
   updates: Record<string, unknown>,
 ): Promise<Transaction | null> {
   const sql = client();
   const entries = Object.entries(updates).filter(
     ([k, v]) => v !== undefined && k !== "id",
   );
-  if (!entries.length) return getTransaction(id);
+  if (!entries.length) return getTransaction(id, tenantId);
 
   const setCols: string[] = [];
   const vals: unknown[] = [];
@@ -506,18 +624,21 @@ export async function updateTransaction(
     vals.push(v);
     setCols.push(`${k} = $${vals.length}`);
   }
-  vals.push(id);
+  vals.push(tenantId, id);
 
   const rows = await sql.query(
-    `update transactions set ${setCols.join(", ")} where id = $${entries.length + 1} returning *`,
+    `update transactions set ${setCols.join(", ")} where id = $${entries.length + 2} and tenant_id = $${entries.length + 1} returning *`,
     vals,
   );
   return rows.length ? toTransaction(rows[0] as Record<string, unknown>) : null;
 }
 
-export async function deleteTransaction(id: string): Promise<boolean> {
+export async function deleteTransaction(id: string, tenantId: string): Promise<boolean> {
   const sql = client();
-  const rows = await sql.query("delete from transactions where id = $1 returning id", [id]);
+  const rows = await sql.query(
+    "delete from transactions where id = $1 and tenant_id = $2 returning id",
+    [id, tenantId],
+  );
   return rows.length > 0;
 }
 

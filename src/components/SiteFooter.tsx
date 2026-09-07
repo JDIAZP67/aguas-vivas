@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { getTenantName } from "@/lib/tenant";
+import { headers } from "next/headers";
+import { resolveTenantSlugForRequest, getTenantNameBySlug } from "@/lib/tenant";
 
-export default async function SiteFooter() {
-  const name = await getTenantName();
+export default async function SiteFooter({ slug: slugProp }: { slug?: string } = {}) {
+  const slug = slugProp ?? (await resolveTenantSlugForRequest(await headers()));
+  const name = await getTenantNameBySlug(slug);
 
   return (
     <footer className="site-footer">

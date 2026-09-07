@@ -1,18 +1,28 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import LiveSection from "@/components/LiveSection";
 import { getTenant, isDemoMode } from "@/lib/data";
 import { DEMO_LIVE_SESSION, DEMO_TENANT, DEMO_UPCOMING } from "@/lib/demo-data";
+import { resolveTenantSlugForRequest, searchParamSlug } from "@/lib/tenant";
 import type { Session } from "@/lib/types";
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ iglesia?: string | string[] }>;
+}) {
   let liveSession: Session | null = null;
   let upcoming: Session[] = [];
   let tenantName: string | undefined;
 
   const demo = isDemoMode();
-  const demoTenant = demo ? DEMO_TENANT : await getTenant();
+  const slug = await resolveTenantSlugForRequest(
+    await headers(),
+    searchParamSlug((await searchParams)?.iglesia),
+  );
+  const demoTenant = demo ? DEMO_TENANT : await getTenant(slug);
   tenantName = demoTenant?.name;
 
   if (demo) {
@@ -23,7 +33,7 @@ export default async function Home() {
   try {
     const { hasDatabase, listSessions } = await import("@/lib/db");
     if (hasDatabase()) {
-      const all = await listSessions();
+      const all = await listSessions(slug);
       const now = Date.now();
       liveSession = all.find((s) => s.status === "en_vivo") ?? null;
       upcoming = all
@@ -35,7 +45,7 @@ export default async function Home() {
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader slug={slug} />
 
       <main>
         <section className="hero">
@@ -223,7 +233,7 @@ export default async function Home() {
         </section>
       </main>
 
-      <SiteFooter />
+      <SiteFooter slug={slug} />
     </>
   );
 }

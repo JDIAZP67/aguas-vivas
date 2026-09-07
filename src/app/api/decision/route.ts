@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { hasDatabase, getTenantRow, createDecision } from "@/lib/db";
-import { DEMO_TENANT } from "@/lib/demo-data";
+import { headers } from "next/headers";
+import { hasDatabase, createDecision } from "@/lib/db";
+import { resolveTenantSlugForRequest } from "@/lib/tenant";
 
 export async function POST(request: Request) {
   let body: Record<string, unknown>;
@@ -43,8 +44,10 @@ export async function POST(request: Request) {
   };
 
   try {
+    const tenantOverride = new URL(request.url).searchParams.get("iglesia");
+    const tenantId = await resolveTenantSlugForRequest(await headers(), tenantOverride);
     await createDecision({
-      tenant_id: DEMO_TENANT.id,
+      tenant_id: tenantId,
       full_name: fullName.slice(0, 120),
       email,
       phone,

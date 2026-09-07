@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasDatabase, updateTenant, getTenantRow } from "@/lib/db";
 import { ADMIN_AUTH_COOKIE } from "@/lib/auth";
-import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
+import { getAdminTenantSlug } from "@/lib/tenant";
 import { cookies } from "next/headers";
 
 const ALLOWED_FIELDS = [
@@ -85,7 +85,8 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const tenant = await getTenantRow(DEFAULT_TENANT_SLUG);
+    const targetSlug = await getAdminTenantSlug();
+    const tenant = await getTenantRow(targetSlug);
     if (!tenant) {
       return NextResponse.json(
         { ok: false, error: "La iglesia no existe. Ejecuta neon/schema.sql." },
@@ -93,7 +94,7 @@ export async function PUT(request: Request) {
       );
     }
 
-    const ok = await updateTenant(DEFAULT_TENANT_SLUG, updates);
+    const ok = await updateTenant(targetSlug, updates);
     if (!ok) {
       return NextResponse.json(
         { ok: false, error: "No se pudieron guardar los cambios." },

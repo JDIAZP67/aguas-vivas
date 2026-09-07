@@ -4,6 +4,7 @@ import ConfigForm from "@/components/ConfigForm";
 import { hasAuthConfigured, getAdminProfile } from "@/lib/auth";
 import { getDemoProfile } from "@/lib/demo-auth";
 import { getTenant } from "@/lib/data";
+import { getAdminTenantSlug } from "@/lib/tenant";
 import type { Profile } from "@/lib/types";
 
 export const metadata = {
@@ -20,7 +21,8 @@ export default async function ConfiguracionPage() {
   if (!useReal && !demoProfile) redirect("/acceso");
 
   const profile: Profile | null = realProfile ?? (demo ? demoProfile : null);
-  const tenant = await getTenant();
+  const slug = await getAdminTenantSlug();
+  const tenant = await getTenant(slug);
 
   return (
     <AdminShell

@@ -1,25 +1,33 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import LessonBody from "@/components/LessonBody";
 import { getLessonPage } from "@/lib/data";
+import { resolveTenantSlugForRequest, searchParamSlug } from "@/lib/tenant";
 
 export default async function LeccionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ curso: string; leccion: string }>;
+  searchParams: Promise<{ iglesia?: string | string[] }>;
 }) {
   const { curso, leccion } = await params;
+  const slug = await resolveTenantSlugForRequest(
+    await headers(),
+    searchParamSlug((await searchParams)?.iglesia),
+  );
 
-  const page = await getLessonPage(curso, leccion);
+  const page = await getLessonPage(slug, curso, leccion);
   if (!page) notFound();
 
   const { course, lesson, prev, next } = page;
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader slug={slug} />
 
       <main className="block">
         <div style={{ maxWidth: 760, margin: "0 auto" }}>
@@ -57,7 +65,7 @@ export default async function LeccionPage({
         </div>
       </main>
 
-      <SiteFooter />
+      <SiteFooter slug={slug} />
     </>
   );
 }

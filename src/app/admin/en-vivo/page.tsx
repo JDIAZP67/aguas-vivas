@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { isDemoMode } from "@/lib/data";
 import { getDemoProfile } from "@/lib/demo-auth";
 import { getAdminProfile } from "@/lib/auth";
+import { getAdminTenantSlug, getTenantNameBySlug } from "@/lib/tenant";
 import { DEMO_LIVE_SESSION, DEMO_UPCOMING, DEMO_RECORDINGS } from "@/lib/demo-data";
 import type { Profile, Session } from "@/lib/types";
 import AdminShell from "@/components/AdminShell";
@@ -27,10 +28,11 @@ export default async function AdminEnVivoPage() {
 
   if (realProfile) {
     profile = realProfile;
-    tenantName = "Aguas Vivas";
+    tenantName = await getTenantNameBySlug(await getAdminTenantSlug());
     try {
       const { listSessions } = await import("@/lib/db");
-      sessions = await listSessions();
+      const slug = await getAdminTenantSlug();
+      sessions = await listSessions(slug);
     } catch {
       sessions = [];
     }

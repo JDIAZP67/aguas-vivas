@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getDemoProfile } from "@/lib/demo-auth";
 import { getAdminProfile } from "@/lib/auth";
+import { getAdminTenantSlug, getTenantNameBySlug } from "@/lib/tenant";
 import { DEMO_COURSE, DEMO_LESSONS } from "@/lib/demo-data";
 import type { Profile } from "@/lib/types";
 import type { Course, Lesson } from "@/lib/lesson";
@@ -28,10 +29,11 @@ export default async function AdminEstudiosPage() {
 
   if (realProfile) {
     profile = realProfile;
-    tenantName = "Aguas Vivas";
+    tenantName = await getTenantNameBySlug(await getAdminTenantSlug());
     try {
       const { listCourses, listLessonsForCourseIds } = await import("@/lib/db");
-      courses = await listCourses();
+      const slug = await getAdminTenantSlug();
+      courses = await listCourses(slug);
       const lessons = await listLessonsForCourseIds(courses.map((c) => c.id));
       for (const l of lessons) {
         (lessonsByCourse[l.course_id] ??= []).push(l);

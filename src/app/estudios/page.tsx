@@ -1,24 +1,34 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { getCourses, getLessonsForCourse } from "@/lib/data";
+import { resolveTenantSlugForRequest, searchParamSlug } from "@/lib/tenant";
 import type { Course, Lesson } from "@/lib/lesson";
 
 export const metadata = {
   title: "Estudios bíblicos",
 };
 
-export default async function EstudiosPage() {
-  const courses: Course[] = await getCourses();
+export default async function EstudiosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ iglesia?: string | string[] }>;
+}) {
+  const slug = await resolveTenantSlugForRequest(
+    await headers(),
+    searchParamSlug((await searchParams)?.iglesia),
+  );
+  const courses: Course[] = await getCourses(slug);
 
   const lessonsByCourse: Record<string, Lesson[]> = {};
   for (const c of courses) {
-    lessonsByCourse[c.id] = await getLessonsForCourse(c.slug);
+    lessonsByCourse[c.id] = await getLessonsForCourse(slug, c.slug);
   }
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader slug={slug} />
 
       <main className="block">
         <div className="section-inner">
@@ -82,7 +92,7 @@ export default async function EstudiosPage() {
         </div>
       </main>
 
-      <SiteFooter />
+      <SiteFooter slug={slug} />
     </>
   );
 }

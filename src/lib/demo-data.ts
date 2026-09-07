@@ -6,6 +6,7 @@ export const DEMO_TENANT: Tenant = {
   id: "demo-tenant-aguas-vivas",
   slug: DEFAULT_TENANT_SLUG,
   name: "Aguas Vivas",
+  primary_domain: null,
   country: "Perú",
   city: null,
   address: null,

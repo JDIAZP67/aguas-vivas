@@ -1,20 +1,30 @@
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import DonationForm from "@/components/DonationForm";
+import { headers } from "next/headers";
 import { getTenant } from "@/lib/data";
+import { resolveTenantSlugForRequest, searchParamSlug } from "@/lib/tenant";
 
 export const metadata = {
   title: "Diezmos y ofrendas",
 };
 
-export default async function DonarPage() {
-  const tenant = await getTenant();
+export default async function DonarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ iglesia?: string | string[] }>;
+}) {
+  const slug = await resolveTenantSlugForRequest(
+    await headers(),
+    searchParamSlug((await searchParams)?.iglesia),
+  );
+  const tenant = await getTenant(slug);
   const donationInfo = tenant?.donation_info ?? null;
   const whatsapp = tenant?.whatsapp ?? null;
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader slug={slug} />
 
       <main className="block" style={{ paddingTop: 48 }}>
         <div className="section-inner">
@@ -49,7 +59,7 @@ export default async function DonarPage() {
         </div>
       </main>
 
-      <SiteFooter />
+      <SiteFooter slug={slug} />
     </>
   );
 }

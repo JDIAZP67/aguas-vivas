@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { getTenant } from "@/lib/data";
+import { resolveTenantSlugForRequest } from "@/lib/tenant";
 import MobileNav from "@/components/MobileNav";
 
-export default async function SiteHeader() {
-  const tenant = await getTenant();
+export default async function SiteHeader({ slug: slugProp }: { slug?: string } = {}) {
+  const slug = slugProp ?? (await resolveTenantSlugForRequest(await headers()));
+  const tenant = await getTenant(slug);
   const name = tenant?.name ?? "Aguas Vivas";
   const logo = tenant?.logo_url || null;
 

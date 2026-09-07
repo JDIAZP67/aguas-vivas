@@ -3,7 +3,7 @@ import Link from "next/link";
 import { isDemoMode } from "@/lib/data";
 import { getDemoProfile } from "@/lib/demo-auth";
 import { getAdminProfile } from "@/lib/auth";
-import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
+import { getAdminTenantSlug, getTenantNameBySlug } from "@/lib/tenant";
 import type { Profile } from "@/lib/types";
 import AdminShell from "@/components/AdminShell";
 
@@ -26,7 +26,7 @@ export default async function AdminPage() {
 
   if (realProfile) {
     profile = realProfile;
-    tenantName = "Aguas Vivas";
+    tenantName = await getTenantNameBySlug(await getAdminTenantSlug());
   } else if (demo) {
     profile = demoProfile;
     tenantName = "Aguas Vivas (Demo)";

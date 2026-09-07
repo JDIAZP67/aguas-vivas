@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { hasDatabase, getTenantRow, createTransaction, getTransaction, updateTransaction, deleteTransaction } from "@/lib/db";
 import { ADMIN_AUTH_COOKIE } from "@/lib/auth";
-import { cookies } from "next/headers";
-import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
+import { cookies, headers } from "next/headers";
+import { getAdminTenantSlug, resolveTenantSlugForRequest } from "@/lib/tenant";
 
 const INCOME_CATS = ["diezmo", "ofrenda", "donacion", "otros_ingreso"];
 const EXPENSE_CATS = [
@@ -67,8 +67,10 @@ export async function POST(request: Request) {
     const method = METHODS.includes(body.method as never) ? String(body.method) : "transferencia";
 
     try {
+      const tenantOverride = new URL(request.url).searchParams.get("iglesia");
+      const tenantId = await resolveTenantSlugForRequest(await headers(), tenantOverride);
       await createTransaction({
-        tenant_id: DEFAULT_TENANT_SLUG,
+        tenant_id: tenantId,
         kind: "ingreso",
         category: ["diezmo", "ofrenda", "donacion"].includes(String(body.category)) ? String(body.category) : "ofrenda",
         amount: Math.round(amount * 100) / 100,
@@ -100,7 +102,7 @@ export async function POST(request: Request) {
       : (EXPENSE_CATS.includes(String(body.category)) ? String(body.category) : "otros_egreso");
 
   const insert: Record<string, unknown> = {
-    tenant_id: DEFAULT_TENANT_SLUG,
+    tenant_id: await getAdminTenantSlug(),
     kind,
     category,
     amount: Math.round(amount * 100) / 100,
@@ -140,6 +142,7 @@ export async function PUT(request: Request) {
   if (auth.error) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
   }
+  const tenantId = await getAdminTenantSlug();
 
   let body: Record<string, unknown>;
   try {
@@ -155,7 +158,7 @@ export async function PUT(request: Request) {
 
   let tx;
   try {
-    tx = await getTransaction(id);
+    tx = await getTransaction(id, tenantId);
   } catch (err) {
     console.error("[tx] get:", err);
     return NextResponse.json({ ok: false, error: "servicio" }, { status: 503 });
@@ -173,7 +176,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ ok: false, error: "Solo ingresos pendientes se confirman." }, { status: 400 });
     }
     try {
-      const updated = await updateTransaction(id, {
+      const updated = await updateTransaction(id, tenantId, {
         status: "confirmado",
         receipt_code: receiptCode(),
         occurred_at: new Date().toISOString(),
@@ -199,7 +202,7 @@ export async function PUT(request: Request) {
 
     const approved = action === "aprobar";
     try {
-      const updated = await updateTransaction(id, {
+      const updated = await updateTransaction(id, tenantId, {
         approval_status: approved ? "aprobado" : "rechazado",
         status: approved ? "aprobado" : "rechazado",
         approved_by_name: "Pastorado",
@@ -234,7 +237,7 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const updated = await updateTransaction(id, updates);
+    const updated = await updateTransaction(id, tenantId, updates);
     return NextResponse.json({ ok: true, transaction: updated });
   } catch (err) {
     console.error("[tx] update:", err);
@@ -261,7 +264,8 @@ export async function DELETE(request: Request) {
   }
 
   try {
-    const ok = await deleteTransaction(id);
+    const tenantId = await getAdminTenantSlug();
+    const ok = await deleteTransaction(id, tenantId);
     if (!ok) {
       return NextResponse.json({ ok: false, error: "Transacción no encontrada." }, { status: 404 });
     }

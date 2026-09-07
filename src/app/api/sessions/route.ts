@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ADMIN_AUTH_COOKIE } from "@/lib/auth";
+import { getAdminTenantSlug } from "@/lib/tenant";
 import { createSession, updateSession, deleteSession } from "@/lib/db";
 import type { Session, SessionType, SessionStatus } from "@/lib/types";
 
@@ -48,9 +49,10 @@ export async function POST(request: Request) {
 
   const { type } = sessionHelpers(body);
   const startsAtRaw = String(body.starts_at ?? "").trim();
+  const tenantId = await getAdminTenantSlug();
   const session: Session = {
     id: crypto.randomUUID(),
-    tenant_id: "aguas-vivas",
+    tenant_id: tenantId,
     title: title.slice(0, 160),
     type,
     course_id: null,
@@ -107,8 +109,10 @@ export async function PUT(request: Request) {
     updates.duration_min = Number(body.duration_min);
   }
 
+  const tenantId = await getAdminTenantSlug();
+
   try {
-    const updated = await updateSession(id, updates);
+    const updated = await updateSession(id, tenantId, updates);
     if (!updated) {
       return NextResponse.json({ ok: false, error: "Sesión no encontrada." }, { status: 404 });
     }
@@ -138,7 +142,8 @@ export async function DELETE(request: Request) {
   }
 
   try {
-    const ok = await deleteSession(id);
+    const tenantId = await getAdminTenantSlug();
+    const ok = await deleteSession(id, tenantId);
     if (!ok) {
       return NextResponse.json({ ok: false, error: "Sesión no encontrada." }, { status: 404 });
     }

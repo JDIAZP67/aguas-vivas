@@ -10,6 +10,7 @@ export interface Tenant {
   id: string
   slug: string
   name: string
+  primary_domain: string | null
   country: string | null
   city: string | null
   address: string | null

@@ -2,47 +2,54 @@ import type { Tenant } from "./types";
 import type { Course, Lesson } from "./lesson";
 import { DEMO_TENANT, DEMO_COURSE, DEMO_LESSONS, DEMO_RECORDINGS } from "./demo-data";
 import type { Session } from "./types";
+import { DEFAULT_TENANT_SLUG } from "./constants";
 
 export function isDemoMode(): boolean {
   return !process.env.DATABASE_URL;
 }
 
-export async function getTenant(): Promise<Tenant | null> {
+export async function getTenant(slug = DEFAULT_TENANT_SLUG): Promise<Tenant | null> {
   if (isDemoMode()) return DEMO_TENANT;
 
   try {
     const { getTenantRow } = await import("@/lib/db");
-    return (await getTenantRow("aguas-vivas")) ?? DEMO_TENANT;
+    return (await getTenantRow(slug)) ?? DEMO_TENANT;
   } catch {
     return DEMO_TENANT;
   }
 }
 
-export async function getCourses(): Promise<Course[]> {
+export async function getCourses(slug = DEFAULT_TENANT_SLUG): Promise<Course[]> {
   if (isDemoMode()) return [DEMO_COURSE];
 
   try {
     const { listCourses } = await import("@/lib/db");
-    return await listCourses();
+    return await listCourses(slug);
   } catch {
     return [DEMO_COURSE];
   }
 }
 
-export async function getLessonsForCourse(slug: string): Promise<Lesson[]> {
+export async function getLessonsForCourse(tenantSlug: string, slug: string): Promise<Lesson[]> {
   if (isDemoMode()) return slug === DEMO_COURSE.slug ? DEMO_LESSONS : [];
 
   try {
     const { listLessonsByCourseSlug } = await import("@/lib/db");
-    return await listLessonsByCourseSlug(slug);
+    return await listLessonsByCourseSlug(tenantSlug, slug);
   } catch {
     return [];
   }
 }
 
-export async function getCourse(slug: string): Promise<Course | null> {
-  const courses = await getCourses();
-  return courses.find((c) => c.slug === slug) ?? null;
+export async function getCourse(tenantSlug: string, slug: string): Promise<Course | null> {
+  if (isDemoMode()) return slug === DEMO_COURSE.slug ? DEMO_COURSE : null;
+
+  try {
+    const { getCourseBySlug } = await import("@/lib/db");
+    return await getCourseBySlug(tenantSlug, slug);
+  } catch {
+    return null;
+  }
 }
 
 export interface LessonPageData {
@@ -54,13 +61,14 @@ export interface LessonPageData {
 }
 
 export async function getLessonPage(
+  tenantSlug: string,
   courseSlug: string,
   lessonSlug: string,
 ): Promise<LessonPageData | null> {
-  const course = await getCourse(courseSlug);
+  const course = await getCourse(tenantSlug, courseSlug);
   if (!course) return null;
 
-  const lessons = await getLessonsForCourse(courseSlug);
+  const lessons = await getLessonsForCourse(tenantSlug, courseSlug);
   const index = lessons.findIndex((l) => l.slug === lessonSlug);
   if (index === -1) return null;
 
@@ -73,13 +81,13 @@ export async function getLessonPage(
   };
 }
 
-export async function getRecordings(): Promise<Session[]> {
+export async function getRecordings(slug = DEFAULT_TENANT_SLUG): Promise<Session[]> {
   const { hasDatabase } = await import("@/lib/db");
   if (!hasDatabase()) return DEMO_RECORDINGS;
 
   try {
     const { listSessions } = await import("@/lib/db");
-    const all = await listSessions("finalizada");
+    const all = await listSessions(slug, "finalizada");
     return all.slice(0, 30);
   } catch {
     return DEMO_RECORDINGS;

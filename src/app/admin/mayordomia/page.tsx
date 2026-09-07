@@ -3,6 +3,7 @@ import AdminShell from "@/components/AdminShell";
 import StewardshipManager from "@/components/StewardshipManager";
 import { getDemoProfile } from "@/lib/demo-auth";
 import { getAdminProfile } from "@/lib/auth";
+import { getAdminTenantSlug, getTenantNameBySlug } from "@/lib/tenant";
 import type { Profile } from "@/lib/types";
 import type { Transaction } from "@/lib/types";
 
@@ -43,7 +44,9 @@ export default async function MayordomiaPage({
   if (!useReal && !demoProfile) redirect("/acceso");
 
   const sessionUser = (realProfile ?? demoProfile) as Profile | null;
-  let tenantName: string | undefined = useReal ? "Aguas Vivas" : "Aguas Vivas (Demo)";
+  let tenantName: string | undefined = useReal
+    ? await getTenantNameBySlug(await getAdminTenantSlug())
+    : "Aguas Vivas (Demo)";
 
   const params = await searchParams;
   const now = new Date();
@@ -55,7 +58,8 @@ export default async function MayordomiaPage({
   if (useReal && realProfile) {
     try {
       const { listTransactions } = await import("@/lib/db");
-      transactions = await listTransactions("aguas-vivas", start, end);
+      const slug = await getAdminTenantSlug();
+      transactions = await listTransactions(slug, start, end);
     } catch {}
   }
 

@@ -1,21 +1,29 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { getCourse, getLessonsForCourse } from "@/lib/data";
+import { resolveTenantSlugForRequest, searchParamSlug } from "@/lib/tenant";
 import type { Lesson } from "@/lib/lesson";
 
 export default async function CursoPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ curso: string }>;
+  searchParams: Promise<{ iglesia?: string | string[] }>;
 }) {
   const { curso } = await params;
+  const slug = await resolveTenantSlugForRequest(
+    await headers(),
+    searchParamSlug((await searchParams)?.iglesia),
+  );
 
-  const course = await getCourse(curso);
+  const course = await getCourse(slug, curso);
   if (!course) notFound();
 
-  const lessons: Lesson[] = await getLessonsForCourse(course.slug);
+  const lessons: Lesson[] = await getLessonsForCourse(slug, course.slug);
   const total = lessons.length;
 
   let lastModule = "";
@@ -23,7 +31,7 @@ export default async function CursoPage({
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader slug={slug} />
 
       <main className="block">
         <div className="section-inner" style={{ maxWidth: 760 }}>
@@ -94,7 +102,7 @@ export default async function CursoPage({
         </div>
       </main>
 
-      <SiteFooter />
+      <SiteFooter slug={slug} />
     </>
   );
 }

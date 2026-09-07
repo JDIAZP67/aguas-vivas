@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { hasDatabase, createLesson, updateLesson, deleteLesson } from "@/lib/db";
+import { hasDatabase, listCourses, createLesson, updateLesson, deleteLesson } from "@/lib/db";
 import { ADMIN_AUTH_COOKIE } from "@/lib/auth";
 import { cookies } from "next/headers";
+import { getAdminTenantSlug } from "@/lib/tenant";
 import { toSlug } from "@/lib/slug";
 
 async function requireAdmin() {
@@ -13,6 +14,15 @@ async function requireAdmin() {
     return { error: "Debes iniciar sesión.", status: 401 as const };
   }
   return { error: null, status: 200 as const };
+}
+
+async function courseBelongsToTenant(courseId: string, tenantId: string): Promise<boolean> {
+  try {
+    const courses = await listCourses(tenantId);
+    return courses.some((c) => c.id === courseId);
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(request: Request) {
@@ -49,6 +59,13 @@ export async function POST(request: Request) {
   }
 
   const sortOrder = Number(body.sort_order) > 0 ? Number(body.sort_order) : 1;
+  const tenantId = await getAdminTenantSlug();
+  if (!(await courseBelongsToTenant(courseId, tenantId))) {
+    return NextResponse.json(
+      { ok: false, error: "El curso no pertenece a esta iglesia." },
+      { status: 403 },
+    );
+  }
 
   try {
     const lesson = await createLesson({
@@ -101,7 +118,8 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const lesson = await updateLesson(id, updates);
+    const tenantId = await getAdminTenantSlug();
+    const lesson = await updateLesson(id, tenantId, updates);
     if (!lesson) {
       return NextResponse.json({ ok: false, error: "Lección no encontrada." }, { status: 404 });
     }
@@ -131,7 +149,8 @@ export async function DELETE(request: Request) {
   }
 
   try {
-    const ok = await deleteLesson(id);
+    const tenantId = await getAdminTenantSlug();
+    const ok = await deleteLesson(id, tenantId);
     if (!ok) {
       return NextResponse.json({ ok: false, error: "Lección no encontrada." }, { status: 404 });
     }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { hasDatabase, createCourse, updateCourse, deleteCourse } from "@/lib/db";
 import { ADMIN_AUTH_COOKIE } from "@/lib/auth";
 import { cookies } from "next/headers";
+import { getAdminTenantSlug } from "@/lib/tenant";
 import { toSlug } from "@/lib/slug";
 
 async function requireAdmin() {
@@ -41,7 +42,9 @@ export async function POST(request: Request) {
   const slug = toSlug(String(body.slug ?? title)) || toSlug(title) || `nivel-${level}`;
 
   try {
+    const tenantId = await getAdminTenantSlug();
     const course = await createCourse({
+      tenant_id: tenantId,
       slug,
       level,
       title: title.slice(0, 200),
@@ -94,7 +97,8 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const course = await updateCourse(id, updates);
+    const tenantId = await getAdminTenantSlug();
+    const course = await updateCourse(id, tenantId, updates);
     if (!course) {
       return NextResponse.json({ ok: false, error: "Curso no encontrado." }, { status: 404 });
     }
@@ -124,7 +128,8 @@ export async function DELETE(request: Request) {
   }
 
   try {
-    const ok = await deleteCourse(id);
+    const tenantId = await getAdminTenantSlug();
+    const ok = await deleteCourse(id, tenantId);
     if (!ok) {
       return NextResponse.json({ ok: false, error: "Curso no encontrado." }, { status: 404 });
     }

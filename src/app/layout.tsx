@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter, IBM_Plex_Mono } from "next/font/google";
-import { getTenantName } from "@/lib/tenant";
+import { headers } from "next/headers";
+import { resolveTenantSlugForRequest, getTenantNameBySlug } from "@/lib/tenant";
 import "./globals.css";
 
 const inter = Inter({
@@ -23,7 +24,8 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const name = await getTenantName();
+  const slug = await resolveTenantSlugForRequest(await headers());
+  const name = await getTenantNameBySlug(slug);
   return {
     title: {
       template: `%s — ${name}`,

@@ -286,3 +286,19 @@ main.admin-main{ padding: 34px 44px 44px; max-width: 1040px; }
   .field-grid{ grid-template-columns:1fr; }
   section.block{ padding: 70px 20px; }
 }
+.church-table th{
+  text-align:left;
+  font-family:var(--font-mono);
+  font-size:0.68rem;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  color:var(--ink-soft);
+  padding:10px 12px 10px 0;
+  border-bottom:1px solid var(--line);
+}
+@media (max-width:720px){
+  .church-table th:nth-child(2),
+  .church-table td:nth-child(2),
+  .church-table th:nth-child(3),
+  .church-table td:nth-child(3){ display:none; }
+}

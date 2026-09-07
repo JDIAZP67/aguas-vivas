@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { Tenant } from "@/lib/types";
+import LogoPicker from "@/components/LogoPicker";
 
 interface Props {
   tenant: Tenant;
@@ -21,82 +22,14 @@ const inputStyle = {
 
 export default function ConfigForm({ tenant }: Props) {
   const router = useRouter();
-  const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState(tenant.logo_url ?? "");
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-
-  const ALLOWED_IMAGE_RE = /^image\/(png|jpeg|webp)$/;
-  const MAX_BYTES = 500_000;
-  const MAX_WIDTH = 300;
-
-  function resizeImage(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const objectUrl = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => {
-        URL.revokeObjectURL(objectUrl);
-        const scale = Math.min(1, MAX_WIDTH / (img.naturalWidth || 1));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.round((img.naturalWidth || 1) * scale));
-        canvas.height = Math.max(1, Math.round((img.naturalHeight || 1) * scale));
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          reject(new Error("No se pudo procesar la imagen."));
-          return;
-        }
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const mime =
-          file.type === "image/jpeg"
-            ? "image/jpeg"
-            : file.type === "image/webp"
-              ? "image/webp"
-              : "image/png";
-        resolve(canvas.toDataURL(mime, 0.9));
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error("Archivo de imagen inválido."));
-      };
-      img.src = objectUrl;
-    });
-  }
-
-  async function handleSelectLogo(file: File | null) {
-    setError(null);
-    setSaved(false);
-    if (!file) return;
-
-    if (!ALLOWED_IMAGE_RE.test(file.type)) {
-      setError("Formato no permitido: usa PNG, JPG o WebP.");
-      return;
-    }
-    if (file.size > MAX_BYTES) {
-      setError("La imagen es muy grande: máximo 500 KB.");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const dataUri = await resizeImage(file);
-      setLogoUrl(dataUri);
-      setLogoPreview(dataUri);
-      if (fileRef.current) fileRef.current.value = "";
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "No se pudo procesar el logo.",
-      );
-    } finally {
-      setUploading(false);
-    }
-  }
 
   async function handleSave(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (busy || uploading) return;
+    if (busy) return;
     setBusy(true);
     setSaved(false);
     setError(null);
@@ -192,52 +125,7 @@ export default function ConfigForm({ tenant }: Props) {
           Aparecerá en el encabezado del sitio público, junto al nombre de la
           congregación. PNG, JPG o WebP · máximo 500 KB (se redimensiona solo).
         </p>
-        <div className="logo-upload-row">
-          {logoPreview || logoUrl ? (
-            <img
-              src={logoPreview ?? logoUrl}
-              alt="Logo"
-              className="logo-preview"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
-            />
-          ) : (
-            <span className="logo-placeholder">Logotipo</span>
-          )}
-          <div className="logo-actions">
-            <button
-              type="button"
-              className="btn"
-              disabled={uploading}
-              onClick={() => fileRef.current?.click()}
-            >
-              {uploading ? "Procesando…" : logoUrl ? "Cambiar logo" : "Subir logo"}
-            </button>
-            {(logoUrl || logoPreview) && (
-              <button
-                type="button"
-                className="btn btn-ghost"
-                disabled={uploading}
-                onClick={() => {
-                  setLogoUrl("");
-                  setLogoPreview(null);
-                  if (fileRef.current) fileRef.current.value = "";
-                }}
-              >
-                Quitar logo
-              </button>
-            )}
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              style={{ display: "none" }}
-              onChange={(e) => handleSelectLogo(e.currentTarget.files?.[0] ?? null)}
-            />
-            <input type="hidden" name="logo_url" value={logoUrl} />
-          </div>
-        </div>
+        <LogoPicker value={logoUrl} onChange={setLogoUrl} onError={setError} />
       </div>
 
       <div className="card">
