@@ -8,6 +8,46 @@ export function isDemoMode(): boolean {
   return !process.env.DATABASE_URL;
 }
 
+export interface LevelProgress {
+  level: number;
+  courseSlug: string;
+  title: string;
+  total: number;
+  done: number;
+  locked: boolean;
+}
+
+export async function getMemberLevelsProgress(
+  tenantSlug: string,
+  userRef: string,
+  memberLevel: number,
+): Promise<LevelProgress[]> {
+  const courses = await getCourses(tenantSlug);
+  const completed = new Set<string>();
+  try {
+    const db = await import("@/lib/db");
+    for (const id of await db.completedLessonIds(userRef)) completed.add(String(id));
+  } catch {
+    // progreso vacío
+  }
+
+  const out: LevelProgress[] = [];
+  for (const c of courses) {
+    const lessons = await getLessonsForCourse(tenantSlug, c.slug);
+    let done = 0;
+    for (const l of lessons) if (completed.has(String(l.id))) done += 1;
+    out.push({
+      level: c.level,
+      courseSlug: c.slug,
+      title: c.title,
+      total: lessons.length,
+      done,
+      locked: c.level > memberLevel,
+    });
+  }
+  return out.sort((a, b) => a.level - b.level);
+}
+
 export async function getTenant(slug = DEFAULT_TENANT_SLUG): Promise<Tenant | null> {
   if (isDemoMode()) return DEMO_TENANT;
 
@@ -58,12 +98,15 @@ export interface LessonPageData {
   prev: Lesson | null;
   next: Lesson | null;
   lessons: Lesson[];
+  userRef?: string;
+  done: boolean;
 }
 
 export async function getLessonPage(
   tenantSlug: string,
   courseSlug: string,
   lessonSlug: string,
+  userRef?: string,
 ): Promise<LessonPageData | null> {
   const course = await getCourse(tenantSlug, courseSlug);
   if (!course) return null;
@@ -72,12 +115,25 @@ export async function getLessonPage(
   const index = lessons.findIndex((l) => l.slug === lessonSlug);
   if (index === -1) return null;
 
+  const lesson = lessons[index];
+  let done = false;
+  if (userRef) {
+    try {
+      const db = await import("@/lib/db");
+      done = await db.isLessonDone(lesson.id, userRef);
+    } catch {
+      done = false;
+    }
+  }
+
   return {
     course,
-    lesson: lessons[index],
+    lesson,
     prev: lessons[index - 1] ?? null,
     next: lessons[index + 1] ?? null,
     lessons,
+    userRef,
+    done,
   };
 }
 

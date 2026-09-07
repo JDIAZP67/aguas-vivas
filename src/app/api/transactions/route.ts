@@ -24,14 +24,23 @@ async function requireFinance(): Promise<{ error: string | null; status: number 
     return { error: "La base de datos no está conectada.", status: 503 };
   }
   const store = await cookies();
-  if (store.get(ADMIN_AUTH_COOKIE)?.value !== "1") {
+  const isAdmin = store.get(ADMIN_AUTH_COOKIE)?.value === "1";
+  if (isAdmin) return { error: null, status: 200 };
+
+  const { getMemberSession } = await import("@/lib/member-auth");
+  const member = await getMemberSession();
+  if (!member || (member.role !== "tesoreria" && member.role !== "pastor")) {
     return { error: "Debes iniciar sesión.", status: 401 };
   }
   return { error: null, status: 200 };
 }
 
-function canApprove() {
-  return true;
+async function canApprove(): Promise<boolean> {
+  const store = await cookies();
+  if (store.get(ADMIN_AUTH_COOKIE)?.value === "1") return true;
+  const { getMemberSession } = await import("@/lib/member-auth");
+  const member = await getMemberSession();
+  return Boolean(member && member.role === "pastor");
 }
 
 export async function POST(request: Request) {
@@ -190,7 +199,7 @@ export async function PUT(request: Request) {
 
   // Aprobar o rechazar egreso — Pastor / Súper Admin (clave maestra)
   if (action === "aprobar" || action === "rechazar") {
-    if (!canApprove()) {
+    if (!(await canApprove())) {
       return NextResponse.json(
         { ok: false, error: "Solo el Pastor puede aprobar o rechazar egresos." },
         { status: 403 },

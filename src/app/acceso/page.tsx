@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import AuthPanel from "@/components/AuthPanel";
@@ -11,7 +12,9 @@ export default function AccesoPage() {
     <>
       <SiteHeader />
       <main className="auth-shell">
-        <AuthPanel />
+        <Suspense fallback={<div className="auth-card">Cargando…</div>}>
+          <AuthPanel />
+        </Suspense>
       </main>
       <SiteFooter />
     </>

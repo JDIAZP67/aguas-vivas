@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { hasDatabase } from "@/lib/db";
-import { ADMIN_AUTH_COOKIE } from "@/lib/auth";
+import { getAdminProfile } from "@/lib/auth";
 import { ACTIVE_TENANT_COOKIE } from "@/lib/tenant";
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -14,13 +14,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const store = await cookies();
-  if (store.get(ADMIN_AUTH_COOKIE)?.value !== "1") {
+  const profile = await getAdminProfile();
+  if (!profile || profile.role !== "super_admin") {
     return NextResponse.json(
-      { ok: false, error: "Debes iniciar sesión." },
-      { status: 401 },
+      { ok: false, error: "Solo el Súper-Admin puede cambiar de iglesia." },
+      { status: 403 },
     );
   }
+
+  const store = await cookies();
 
   let body: { slug?: string };
   try {
@@ -41,7 +43,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "La iglesia no existe." }, { status: 404 });
     }
   } catch {
-    return NextResponse.json({ ok: false, error: "servicio" }, { status: 503 });
+    return NextResponse.json({ ok: false, error: "No se pudo verificar la iglesia." }, { status: 503 });
   }
 
   try {

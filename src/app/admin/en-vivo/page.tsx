@@ -3,6 +3,7 @@ import { isDemoMode } from "@/lib/data";
 import { getDemoProfile } from "@/lib/demo-auth";
 import { getAdminProfile } from "@/lib/auth";
 import { getAdminTenantSlug, getTenantNameBySlug } from "@/lib/tenant";
+import { roleAllows } from "@/lib/roles";
 import { DEMO_LIVE_SESSION, DEMO_UPCOMING, DEMO_RECORDINGS } from "@/lib/demo-data";
 import type { Profile, Session } from "@/lib/types";
 import AdminShell from "@/components/AdminShell";
@@ -21,6 +22,7 @@ export default async function AdminEnVivoPage() {
 
   if (useReal && !realProfile) redirect("/acceso");
   if (!useReal && !demoProfile) redirect("/acceso");
+  if (realProfile && !roleAllows(realProfile.role, "contenido")) redirect("/admin");
 
   let sessions: Session[] = [];
   let profile: Profile | null = null;

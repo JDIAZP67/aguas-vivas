@@ -5,6 +5,7 @@ import { hasAuthConfigured, getAdminProfile } from "@/lib/auth";
 import { getDemoProfile } from "@/lib/demo-auth";
 import { listTenants } from "@/lib/db";
 import { getAdminTenantSlug } from "@/lib/tenant";
+import { roleAllows } from "@/lib/roles";
 import type { Profile, Tenant } from "@/lib/types";
 
 export const metadata = {
@@ -19,6 +20,7 @@ export default async function IglesiasPage() {
 
   if (useReal && !realProfile) redirect("/acceso");
   if (!useReal && !demoProfile) redirect("/acceso");
+  if (realProfile && !roleAllows(realProfile.role, "iglesias")) redirect("/admin");
 
   const profile: Profile | null = realProfile ?? (demo ? demoProfile : null);
 

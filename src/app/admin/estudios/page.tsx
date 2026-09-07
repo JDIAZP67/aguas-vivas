@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getDemoProfile } from "@/lib/demo-auth";
 import { getAdminProfile } from "@/lib/auth";
 import { getAdminTenantSlug, getTenantNameBySlug } from "@/lib/tenant";
+import { roleAllows } from "@/lib/roles";
 import { DEMO_COURSE, DEMO_LESSONS } from "@/lib/demo-data";
 import type { Profile } from "@/lib/types";
 import type { Course, Lesson } from "@/lib/lesson";
@@ -21,6 +22,7 @@ export default async function AdminEstudiosPage() {
 
   if (useReal && !realProfile) redirect("/acceso");
   if (!useReal && !demoProfile) redirect("/acceso");
+  if (realProfile && !roleAllows(realProfile.role, "estudios")) redirect("/admin");
 
   let courses: Course[] = [];
   let lessonsByCourse: Record<string, Lesson[]> = {};

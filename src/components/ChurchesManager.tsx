@@ -75,7 +75,14 @@ export default function ChurchesManager({ tenants, activeSlug }: Props) {
     const isEdit = form?.mode === "edit";
     const body = isEdit && form.mode === "edit"
       ? { ...base, slug: form.tenant.slug }
-      : { ...base, slug: String(fd.get("slug") ?? "").trim(), clone_nivel1: fd.get("clone_nivel1") === "on" };
+      : {
+          ...base,
+          slug: String(fd.get("slug") ?? "").trim(),
+          clone_nivel1: fd.get("clone_nivel1") === "on",
+          pastor_name: String(fd.get("pastor_name") ?? "").trim(),
+          pastor_email: String(fd.get("pastor_email") ?? "").trim(),
+          pastor_clave: String(fd.get("pastor_clave") ?? ""),
+        };
 
     try {
       const res = await fetch("/api/admin/iglesias", {
@@ -91,7 +98,11 @@ export default function ChurchesManager({ tenants, activeSlug }: Props) {
       setNotice(
         isEdit
           ? "Iglesia actualizada."
-          : `Iglesia creada.${data.cloned ? ` Se clonó el Nivel 1 (${data.cloned} lecciones).` : ""}`,
+          : `Iglesia creada.${data.cloned ? ` Se clonó el Nivel 1 (${data.cloned} lecciones).` : ""}${
+              data.pastor_email
+                ? ` Cuenta del pastor creada con el correo ${data.pastor_email}.`
+                : ""
+            }`,
       );
       setForm(null);
       router.refresh();
@@ -226,6 +237,29 @@ export default function ChurchesManager({ tenants, activeSlug }: Props) {
               <h4 style={{ marginBottom: 10 }}>Logo</h4>
               <LogoPicker value={logoUrl} onChange={setLogoUrl} onError={setError} />
             </div>
+
+            {form.mode === "create" && (
+              <div style={{ marginTop: 20, borderTop: "1px solid var(--line)", paddingTop: 18 }}>
+                <h4 style={{ marginBottom: 4 }}>Cuenta del pastor (opcional)</h4>
+                <p className="hint" style={{ marginBottom: 12 }}>
+                  Crea la cuenta de administración de la iglesia con rol <b>pastor</b>.
+                </p>
+                <div className="field-grid">
+                  <div className="field">
+                    <label htmlFor="pastor_name">Nombre del pastor</label>
+                    <input id="pastor_name" name="pastor_name" style={inputStyle} />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="pastor_email">Correo</label>
+                    <input id="pastor_email" name="pastor_email" type="email" style={inputStyle} />
+                  </div>
+                  <div className="field full">
+                    <label htmlFor="pastor_clave">Clave</label>
+                    <input id="pastor_clave" name="pastor_clave" type="password" minLength={6} style={inputStyle} />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {form.mode === "create" && (
               <label

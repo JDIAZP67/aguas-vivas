@@ -4,6 +4,7 @@ import StewardshipManager from "@/components/StewardshipManager";
 import { getDemoProfile } from "@/lib/demo-auth";
 import { getAdminProfile } from "@/lib/auth";
 import { getAdminTenantSlug, getTenantNameBySlug } from "@/lib/tenant";
+import { roleAllows } from "@/lib/roles";
 import type { Profile } from "@/lib/types";
 import type { Transaction } from "@/lib/types";
 
@@ -42,6 +43,7 @@ export default async function MayordomiaPage({
 
   if (useReal && !realProfile) redirect("/acceso");
   if (!useReal && !demoProfile) redirect("/acceso");
+  if (realProfile && !roleAllows(realProfile.role, "mayordomia")) redirect("/admin");
 
   const sessionUser = (realProfile ?? demoProfile) as Profile | null;
   let tenantName: string | undefined = useReal

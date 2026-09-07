@@ -148,3 +148,17 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   maestro: 'Maestro / Líder',
   miembro: 'Miembro',
 }
+
+export type MemberRole = 'pastor' | 'tesoreria' | 'maestro' | 'miembro'
+
+export interface Member {
+  id: string
+  tenant_id: string
+  email: string
+  full_name: string
+  role: MemberRole
+  status: 'pending' | 'active' | 'suspended'
+  level: number
+  created_at: string
+  updated_at: string
+}

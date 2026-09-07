@@ -12,6 +12,6 @@ export async function getDemoProfile(): Promise<Profile | null> {
     id: "demo-admin",
     tenant_id: "demo-tenant-aguas-vivas",
     full_name: "Pastor Demo",
-    role: "pastor",
+    role: "super_admin",
   };
 }

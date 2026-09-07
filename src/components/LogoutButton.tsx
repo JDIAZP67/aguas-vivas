@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 
 const DEMO_AUTH_COOKIE = "av_demo_auth";
 const ADMIN_AUTH_COOKIE = "av_admin_auth";
+const MEMBER_AUTH_COOKIE = "av_member";
 
 export default function LogoutButton() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function LogoutButton() {
     if (typeof document !== "undefined") {
       document.cookie = `${DEMO_AUTH_COOKIE}=; path=/; max-age=0`;
       document.cookie = `${ADMIN_AUTH_COOKIE}=; path=/; max-age=0`;
+      document.cookie = `${MEMBER_AUTH_COOKIE}=; path=/; max-age=0`;
     }
     router.push("/");
     router.refresh();

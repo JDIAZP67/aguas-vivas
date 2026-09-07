@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import {
   hasDatabase,
   createTenant,
@@ -7,13 +6,13 @@ import {
   tenantExists,
   copyCoursesToTenant,
 } from "@/lib/db";
-import { ADMIN_AUTH_COOKIE } from "@/lib/auth";
 import { DEFAULT_TENANT_SLUG } from "@/lib/constants";
 import { toSlug } from "@/lib/slug";
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DATA_URI_RE = /^data:image\/(png|jpeg|webp);base64,[a-zA-Z0-9+/=]+$/;
 const MAX_LOGO_CHARS = 700_000;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const BRAND_FIELDS = [
   "country",
@@ -32,13 +31,14 @@ const BRAND_FIELDS = [
   "donation_info",
 ] as const;
 
-async function requireAdmin() {
+async function requireSuperAdmin() {
   if (!hasDatabase()) {
     return { error: "La base de datos no está conectada.", status: 503 as const };
   }
-  const store = await cookies();
-  if (store.get(ADMIN_AUTH_COOKIE)?.value !== "1") {
-    return { error: "Debes iniciar sesión.", status: 401 as const };
+  const { getAdminProfile } = await import("@/lib/auth");
+  const profile = await getAdminProfile();
+  if (!profile || profile.role !== "super_admin") {
+    return { error: "Solo el Súper-Admin puede gestionar iglesias.", status: 403 as const };
   }
   return { error: null, status: 200 as const };
 }
@@ -70,7 +70,7 @@ function collectBrandFields(body: Record<string, unknown>): Record<string, unkno
 }
 
 export async function POST(request: Request) {
-  const ctx = await requireAdmin();
+  const ctx = await requireSuperAdmin();
   if (ctx.error) {
     return NextResponse.json({ ok: false, error: ctx.error }, { status: ctx.status });
   }
@@ -120,7 +120,38 @@ export async function POST(request: Request) {
       cloned = await copyCoursesToTenant(DEFAULT_TENANT_SLUG, slug);
     }
 
-    return NextResponse.json({ ok: true, tenant, cloned });
+    let pastorEmail: string | null = null;
+    const pastorName = String(body.pastor_name ?? "").trim();
+    const pastorEmailRaw = String(body.pastor_email ?? "").trim().toLowerCase();
+    const pastorClave = String(body.pastor_clave ?? "");
+    if (pastorName || pastorEmailRaw || pastorClave) {
+      if (!pastorName || !EMAIL_RE.test(pastorEmailRaw) || pastorClave.length < 6) {
+        return NextResponse.json(
+          { ok: false, error: "Completa nombre, correo válido y clave (mín. 6) del pastor." },
+          { status: 400 },
+        );
+      }
+      const db = await import("@/lib/db");
+      if (await db.findMemberByEmail(slug, pastorEmailRaw)) {
+        return NextResponse.json(
+          { ok: false, error: "El correo del pastor ya está registrado en esta iglesia." },
+          { status: 409 },
+        );
+      }
+      const { hashPassword } = await import("@/lib/password");
+      const pastor = await db.createMember({
+        tenant_id: slug,
+        email: pastorEmailRaw,
+        password_hash: await hashPassword(pastorClave),
+        full_name: pastorName,
+        role: "pastor",
+        status: "active",
+        level: 1,
+      });
+      pastorEmail = pastor.email;
+    }
+
+    return NextResponse.json({ ok: true, tenant, cloned, pastor_email: pastorEmail });
   } catch (err) {
     console.error("[iglesias] create:", err);
     return NextResponse.json({ ok: false, error: "No se pudo crear la iglesia." }, { status: 503 });
@@ -128,7 +159,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const ctx = await requireAdmin();
+  const ctx = await requireSuperAdmin();
   if (ctx.error) {
     return NextResponse.json({ ok: false, error: ctx.error }, { status: ctx.status });
   }

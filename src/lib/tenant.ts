@@ -57,6 +57,13 @@ export async function getAdminTenantSlug(): Promise<string> {
   if (isDemoMode()) return DEFAULT_TENANT_SLUG;
   try {
     const store = await cookies();
+
+    // Perfil de miembro (pastor/tesoreria/maestro) → la iglesia de su cuenta
+    const { getAdminProfile } = await import("@/lib/auth");
+    const profile = await getAdminProfile();
+    if (profile && profile.role !== "super_admin" && profile.tenant_id) return profile.tenant_id;
+
+    // Clave maestra: cookie `av_tenant` (la cambia el súper-admin) o la por defecto
     const slug = store.get(ACTIVE_TENANT_COOKIE)?.value;
     if (slug && TENANT_SLUG_RE.test(slug) && slug !== DEFAULT_TENANT_SLUG) {
       const { tenantExists } = await import("@/lib/db");

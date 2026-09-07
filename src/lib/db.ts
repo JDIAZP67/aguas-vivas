@@ -1,5 +1,7 @@
 import { neon } from "@neondatabase/serverless";
+import { randomBytes } from "node:crypto";
 import type {
+  Member,
   SalvationDecision,
   Session,
   Tenant,
@@ -515,25 +517,243 @@ export async function copyCoursesToTenant(
 }
 
 // ----------------------------------------------------------------------------
-// Progreso de lecciones (clave maestra: user_ref 'admin')
+// Progreso de lecciones (user_ref: 'admin' para la clave maestra,
+// o el id de un miembro)
 // ----------------------------------------------------------------------------
 
-export async function setLessonProgress(lessonId: string): Promise<void> {
+export async function setLessonProgress(lessonId: string, userRef = "admin"): Promise<void> {
   const sql = client();
   await sql.query(
     `insert into lesson_progress (user_ref, lesson_id)
-     values ('admin', $1)
+     values ($1, $2)
      on conflict (user_ref, lesson_id) do nothing`,
-    [lessonId],
+    [userRef, lessonId],
   );
 }
 
-export async function unsetLessonProgress(lessonId: string): Promise<void> {
+export async function unsetLessonProgress(lessonId: string, userRef = "admin"): Promise<void> {
   const sql = client();
   await sql.query(
-    "delete from lesson_progress where user_ref = 'admin' and lesson_id = $1",
-    [lessonId],
+    "delete from lesson_progress where user_ref = $1 and lesson_id = $2",
+    [userRef, lessonId],
   );
+}
+
+export async function completedLessonIds(userRef: string): Promise<string[]> {
+  const sql = client();
+  const rows = await sql.query(
+    "select lesson_id from lesson_progress where user_ref = $1",
+    [userRef],
+  );
+  return (rows as Record<string, unknown>[]).map((r) => String(r.lesson_id));
+}
+
+export async function countTenantLessons(tenantId: string): Promise<number> {
+  const sql = client();
+  const rows = await sql.query(
+    `select count(l.id) as total
+     from courses c
+     join lessons l on l.course_id = c.id
+     where c.tenant_id = $1`,
+    [tenantId],
+  );
+  return rows.length ? Number(rows[0].total) : 0;
+}
+
+export async function isLessonDone(lessonId: string, userRef: string): Promise<boolean> {
+  const sql = client();
+  const rows = await sql.query(
+    "select 1 from lesson_progress where user_ref = $1 and lesson_id = $2 limit 1",
+    [userRef, lessonId],
+  );
+  return rows.length > 0;
+}
+
+// ----------------------------------------------------------------------------
+// Miembros
+// ----------------------------------------------------------------------------
+
+function toMember(row: Record<string, unknown>): Member {
+  return {
+    id: String(row.id),
+    tenant_id: String(row.tenant_id ?? "aguas-vivas"),
+    email: String(row.email),
+    full_name: String(row.full_name),
+    role: (row.role as Member["role"]) ?? "miembro",
+    status: (row.status as Member["status"]) ?? "active",
+    level: Number(row.level ?? 1),
+    created_at: String(row.created_at),
+    updated_at: String(row.updated_at),
+  };
+}
+
+export async function createMember(input: Record<string, unknown>): Promise<Member> {
+  const sql = client();
+  const rows = await sql.query(
+    `insert into members (tenant_id, email, password_hash, full_name, role, status, level)
+     values ($1, $2, $3, $4, $5, $6, $7) returning *`,
+    [
+      input.tenant_id ?? "aguas-vivas",
+      String(input.email ?? "").toLowerCase().trim(),
+      input.password_hash,
+      input.full_name ?? "",
+      input.role ?? "miembro",
+      input.status ?? "active",
+      input.level ?? 1,
+    ],
+  );
+  return toMember(rows[0] as Record<string, unknown>);
+}
+
+export async function findMemberByEmail(tenantId: string, email: string): Promise<Member | null> {
+  const sql = client();
+  const rows = await sql.query(
+    "select * from members where tenant_id = $1 and lower(email) = lower($2) limit 1",
+    [tenantId, String(email).trim()],
+  );
+  return rows.length ? toMember(rows[0] as Record<string, unknown>) : null;
+}
+
+export async function getMember(id: string): Promise<Member | null> {
+  const sql = client();
+  const rows = await sql.query("select * from members where id = $1 limit 1", [id]);
+  return rows.length ? toMember(rows[0] as Record<string, unknown>) : null;
+}
+
+export async function getMemberPasswordHash(id: string): Promise<string | null> {
+  const sql = client();
+  const rows = await sql.query(
+    "select password_hash from members where id = $1 limit 1",
+    [id],
+  );
+  return rows.length ? String(rows[0].password_hash) : null;
+}
+
+export async function listMembers(tenantId: string): Promise<Member[]> {
+  const sql = client();
+  const rows = await sql.query(
+    "select * from members where tenant_id = $1 order by full_name asc",
+    [tenantId],
+  );
+  return (rows as Record<string, unknown>[]).map(toMember);
+}
+
+export async function updateMember(
+  id: string,
+  updates: Record<string, unknown>,
+): Promise<Member | null> {
+  const sql = client();
+  const entries = Object.entries(updates).filter(
+    ([k, v]) => v !== undefined && k !== "id" && k !== "email",
+  );
+  if (!entries.length) return getMember(id);
+
+  entries.push(["updated_at", new Date().toISOString()]);
+  const setCols: string[] = [];
+  const vals: unknown[] = [];
+  for (const [k, v] of entries) {
+    vals.push(v);
+    setCols.push(`${k} = $${vals.length}`);
+  }
+  vals.push(id);
+
+  const rows = await sql.query(
+    `update members set ${setCols.join(", ")} where id = $${vals.length} returning *`,
+    vals,
+  );
+  return rows.length ? toMember(rows[0] as Record<string, unknown>) : null;
+}
+
+// ----------------------------------------------------------------------------
+// Sesiones de miembro
+// ----------------------------------------------------------------------------
+
+export async function createMemberSession(
+  memberId: string,
+  expiresAt: string,
+): Promise<string> {
+  const sql = client();
+  const token = (
+    process.env.MEMBER_SESSION_SECRET ?? "av-members"
+  ) + "-" + randomBytes(48).toString("hex");
+  await sql.query(
+    "insert into member_sessions (token, member_id, expires_at) values ($1, $2, $3)",
+    [token, memberId, expiresAt],
+  );
+  return token;
+}
+
+export async function getMemberBySession(token: string): Promise<Member | null> {
+  const sql = client();
+  const rows = await sql.query(
+    `select m.*
+     from member_sessions s
+     join members m on m.id = s.member_id
+     where s.token = $1 and s.expires_at > now() and m.status = 'active'
+     limit 1`,
+    [token],
+  );
+  return rows.length ? toMember(rows[0] as Record<string, unknown>) : null;
+}
+
+export async function deleteMemberSession(token: string): Promise<void> {
+  const sql = client();
+  await sql.query("delete from member_sessions where token = $1", [token]);
+}
+
+export async function revokeMemberSessions(memberId: string): Promise<void> {
+  const sql = client();
+  await sql.query("delete from member_sessions where member_id = $1", [memberId]);
+}
+
+// ----------------------------------------------------------------------------
+// Niveles: desbloqueo automático por progreso
+// ----------------------------------------------------------------------------
+
+export async function syncMemberLevel(memberId: string, tenantId: string): Promise<number> {
+  const sql = client();
+  const member = await getMember(memberId);
+  if (!member) return 0;
+
+  const totals = await sql.query(
+    `select c.level, count(l.id) as total
+     from courses c
+     join lessons l on l.course_id = c.id
+     where c.tenant_id = $1
+     group by c.level`,
+    [tenantId],
+  );
+  if (!totals.length) return member.level;
+
+  const done = await sql.query(
+    `select c.level, count(lp.lesson_id) as done
+     from courses c
+     join lessons l on l.course_id = c.id
+     join lesson_progress lp on lp.lesson_id = l.id and lp.user_ref = $1
+     where c.tenant_id = $2
+     group by c.level`,
+    [memberId, tenantId],
+  );
+
+  const totalBy = new Map<number, number>();
+  for (const r of totals) totalBy.set(Number(r.level), Number(r.total));
+  const doneBy = new Map<number, number>();
+  for (const r of done) doneBy.set(Number(r.level), Number(r.done));
+
+  const levels = [...totalBy.keys()].sort((a, b) => a - b);
+  let unlocked = member.level;
+  for (const lv of levels) {
+    const total = totalBy.get(lv) ?? 0;
+    const d = doneBy.get(lv) ?? 0;
+    if (d >= total) unlocked = lv + 1;
+    else break;
+  }
+
+  const next = Math.max(member.level, unlocked);
+  if (next !== member.level) {
+    await sql.query("update members set level = $1, updated_at = now() where id = $2", [next, memberId]);
+  }
+  return next;
 }
 
 // ----------------------------------------------------------------------------
