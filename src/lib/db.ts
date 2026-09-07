@@ -707,6 +707,37 @@ export async function revokeMemberSessions(memberId: string): Promise<void> {
 }
 
 // ----------------------------------------------------------------------------
+// Recuperación de clave por correo
+// ----------------------------------------------------------------------------
+
+export async function createPasswordReset(
+  memberId: string,
+  token: string,
+  expiresAt: string,
+): Promise<void> {
+  const sql = client();
+  await sql.query(
+    "insert into password_resets (token, member_id, expires_at) values ($1, $2, $3)",
+    [token, memberId, expiresAt],
+  );
+}
+
+export async function getPasswordReset(token: string): Promise<string | null> {
+  const sql = client();
+  const rows = await sql.query(
+    `select member_id from password_resets
+     where token = $1 and expires_at > now() limit 1`,
+    [token],
+  );
+  return rows.length ? String(rows[0].member_id) : null;
+}
+
+export async function consumePasswordReset(token: string): Promise<void> {
+  const sql = client();
+  await sql.query("delete from password_resets where token = $1", [token]);
+}
+
+// ----------------------------------------------------------------------------
 // Niveles: desbloqueo automático por progreso
 // ----------------------------------------------------------------------------
 

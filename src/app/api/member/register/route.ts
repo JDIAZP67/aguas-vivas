@@ -76,6 +76,14 @@ export async function POST(request: Request) {
     const store = await cookies();
     store.set(MEMBER_AUTH_COOKIE, token, memberCookieOptions());
 
+    // Aviso de bienvenida por correo (no bloquea el registro)
+    const mail = await import("@/lib/mail");
+    if (mail.hasSmtp()) {
+      const tenant = await db.getTenantRow(tenantId);
+      const tenantName = tenant?.name ?? "tu iglesia";
+      void mail.sendMail({ to: member.email, ...mail.mailWelcomeMember(tenantName) });
+    }
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[member/register]", err);
