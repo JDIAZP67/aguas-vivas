@@ -182,21 +182,17 @@ E'Banco de Crédito (BCP)\nCuenta corriente soles: 000-0000000-00\nCCI: 002-000-
 where slug = 'aguas-vivas' and donation_info is null;
 
 insert into sessions (tenant_id, title, type, host_name, starts_at, duration_min, status, notes)
-values (
-  'aguas-vivas', 'Predicación dominical — Fundamentos de fe', 'predicacion', 'Pastorado',
-  now() + interval '3 days', 60, 'programada',
-  'Servicio general abierto a toda la congregación y visitantes.'
-)
+select 'aguas-vivas', 'Predicación dominical — Fundamentos de fe', 'predicacion', 'Pastorado',
+       now() + interval '3 days', 60, 'programada',
+       'Servicio general abierto a toda la congregación y visitantes.'
 where not exists (
   select 1 from sessions s where s.title = 'Predicación dominical — Fundamentos de fe'
 );
 
 insert into sessions (tenant_id, title, type, host_name, starts_at, duration_min, status, notes)
-values (
-  'aguas-vivas', 'Anuncios de la semana', 'anuncio', 'Equipo pastoral',
-  now() - interval '7 days', 20, 'finalizada',
-  'Actividades, bautismos y avisos generales.'
-)
+select 'aguas-vivas', 'Anuncios de la semana', 'anuncio', 'Equipo pastoral',
+       now() - interval '7 days', 20, 'finalizada',
+       'Actividades, bautismos y avisos generales.'
 where not exists (
   select 1 from sessions s where s.title = 'Anuncios de la semana'
 );

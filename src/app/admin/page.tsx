@@ -53,10 +53,26 @@ export default async function AdminPage() {
       </div>
 
       <p className="subhead" style={{ marginBottom: 20 }}>
-        Gestiona el contenido audiovisual en el módulo «Contenido &amp;
-        video» y los niveles de estudio en «Niveles de estudio». La
-        mayordomía está en «Diezmos, ofrendas y gastos».
+        Gestiona la información, el logo y las características de tu
+        iglesia en «Configuración»; el contenido audiovisual en «Contenido
+        &amp; video»; los niveles de estudio en «Niveles de estudio»; y la
+        mayordomía en «Diezmos, ofrendas y gastos».
       </p>
+
+      <div className="card" style={{ maxWidth: 560 }}>
+        <h3>Configuración de la iglesia</h3>
+        <p className="hint">
+          Nombre, logo, país, ciudad, contacto, horarios y cuentas para
+          diezmos.
+        </p>
+        <Link
+          href="/admin/configuracion"
+          className="pbtn pbtn-solid"
+          style={{ alignSelf: "flex-start" }}
+        >
+          Ir a Configuración
+        </Link>
+      </div>
 
       <Link
         href="/admin/en-vivo"

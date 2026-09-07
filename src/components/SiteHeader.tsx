@@ -1,15 +1,26 @@
 import Link from "next/link";
-import { getTenantName } from "@/lib/tenant";
+import { getTenant } from "@/lib/data";
 import MobileNav from "@/components/MobileNav";
 
 export default async function SiteHeader() {
-  const name = await getTenantName();
+  const tenant = await getTenant();
+  const name = tenant?.name ?? "Aguas Vivas";
+  const logo = tenant?.logo_url || null;
 
   return (
     <header className="public-header">
       <div className="nav-wrap">
         <Link href="/" className="brand">
-          <span className="brand-mark" />
+          {logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logo}
+              alt={`Logo de ${name}`}
+              className="brand-logo"
+            />
+          ) : (
+            <span className="brand-mark" />
+          )}
           {name}
         </Link>
         <nav className="main-nav">

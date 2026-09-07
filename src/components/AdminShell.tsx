@@ -8,7 +8,7 @@ const NAV = [
   { href: "/admin/en-vivo", label: "Contenido & video" },
   { href: "/admin/mayordomia", label: "Mayordomía" },
   { href: "/admin/estudios", label: "Niveles de estudio" },
-  { href: "/admin", label: "Configuración" },
+  { href: "/admin/configuracion", label: "Configuración" },
 ];
 
 export default function AdminShell({

@@ -10,6 +10,7 @@ const ALLOWED_FIELDS = [
   "city",
   "address",
   "description",
+  "logo_url",
   "brand_color",
   "contact_email",
   "contact_phone",
@@ -20,6 +21,10 @@ const ALLOWED_FIELDS = [
   "service_schedule",
   "donation_info",
 ] as const;
+
+const BLOB_URL_RE = /^https:\/\/[a-z0-9]+\.public\.blob\.vercel-storage\.com\/.+$/i;
+const DATA_URI_RE = /^data:image\/(png|jpeg|webp);base64,[a-zA-Z0-9+/=]+$/;
+const MAX_LOGO_CHARS = 700_000;
 
 export async function PUT(request: Request) {
   if (!hasDatabase()) {
@@ -64,6 +69,19 @@ export async function PUT(request: Request) {
   }
   if (!/^#[0-9a-fA-F]{6}$/.test(updates.brand_color ?? "")) {
     updates.brand_color = "#0a3b5c";
+  }
+  const logo = String(updates.logo_url ?? "").trim();
+  if (logo && !BLOB_URL_RE.test(logo) && !DATA_URI_RE.test(logo)) {
+    return NextResponse.json(
+      { ok: false, error: "El enlace del logo no es válido." },
+      { status: 400 },
+    );
+  }
+  if (logo.startsWith("data:image/") && logo.length > MAX_LOGO_CHARS) {
+    return NextResponse.json(
+      { ok: false, error: "El logo es muy grande." },
+      { status: 400 },
+    );
   }
 
   try {
